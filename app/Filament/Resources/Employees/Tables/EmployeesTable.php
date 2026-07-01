@@ -23,6 +23,10 @@ class EmployeesTable
                     ->label('Nama Pegawai')
                     ->searchable()
                     ->sortable(),
+                TextColumn::make('user.email')
+                    ->label('Email')
+                    ->searchable()
+                    ->sortable(),
                 TextColumn::make('division.name')
                     ->label('Divisi')
                     ->sortable(),
@@ -50,17 +54,20 @@ class EmployeesTable
                     ->label('Jabatan')
                     ->relationship('position', 'name'),
                 SelectFilter::make('status')
+                    ->label('Status')
                     ->options([
                         'active' => 'Aktif',
                         'inactive' => 'Tidak Aktif',
                     ]),
             ])
             ->recordActions([
-                EditAction::make(),
+                EditAction::make()
+                    ->label('Ubah'),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
+                    DeleteBulkAction::make()
+                        ->label('Hapus terpilih'),
                 ]),
             ]);
     }

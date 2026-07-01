@@ -30,11 +30,11 @@ class UserForm
                     ->dehydrated(fn (?string $state): bool => filled($state))
                     ->maxLength(255),
                 Select::make('role')
-                    ->label('Role')
+                    ->label('Peran')
                     ->options([
                         'admin' => 'Admin',
                         'supervisor' => 'Supervisor',
-                        'employee' => 'Employee',
+                        'employee' => 'Pegawai',
                     ])
                     ->default('employee')
                     ->required(),

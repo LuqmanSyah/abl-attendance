@@ -25,6 +25,10 @@ class EmployeeResource extends Resource
 
     protected static ?string $navigationLabel = 'Pegawai';
 
+    protected static ?string $modelLabel = 'pegawai';
+
+    protected static ?string $pluralModelLabel = 'pegawai';
+
     protected static ?int $navigationSort = 3;
 
     protected static ?string $recordTitleAttribute = 'name';

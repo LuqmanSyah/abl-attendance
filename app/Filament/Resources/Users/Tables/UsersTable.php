@@ -24,8 +24,14 @@ class UsersTable
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('role')
-                    ->label('Role')
+                    ->label('Peran')
                     ->badge()
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        'admin' => 'Admin',
+                        'supervisor' => 'Supervisor',
+                        'employee' => 'Pegawai',
+                        default => $state,
+                    })
                     ->sortable(),
                 TextColumn::make('created_at')
                     ->label('Dibuat')
@@ -35,18 +41,21 @@ class UsersTable
             ])
             ->filters([
                 SelectFilter::make('role')
+                    ->label('Peran')
                     ->options([
                         'admin' => 'Admin',
                         'supervisor' => 'Supervisor',
-                        'employee' => 'Employee',
+                        'employee' => 'Pegawai',
                     ]),
             ])
             ->recordActions([
-                EditAction::make(),
+                EditAction::make()
+                    ->label('Ubah'),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
+                    DeleteBulkAction::make()
+                        ->label('Hapus terpilih'),
                 ]),
             ]);
     }

@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Employees\Schemas;
 
+use App\Models\Employee;
+use App\Models\User;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -21,6 +23,24 @@ class EmployeeForm
                 TextInput::make('name')
                     ->label('Nama Pegawai')
                     ->required()
+                    ->maxLength(255),
+                TextInput::make('email')
+                    ->label('Email')
+                    ->email()
+                    ->required()
+                    ->maxLength(255)
+                    ->unique(
+                        table: User::class,
+                        column: 'email',
+                        ignorable: fn (?Employee $record): ?User => $record?->user,
+                        ignoreRecord: false,
+                    ),
+                TextInput::make('password')
+                    ->label('Password')
+                    ->password()
+                    ->revealable()
+                    ->required(fn (string $operation, ?Employee $record): bool => $operation === 'create' || blank($record?->user_id))
+                    ->dehydrated(fn (?string $state): bool => filled($state))
                     ->maxLength(255),
                 TextInput::make('phone')
                     ->label('No. Telepon')

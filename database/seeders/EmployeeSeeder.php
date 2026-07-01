@@ -28,7 +28,7 @@ class EmployeeSeeder extends Seeder
         $andi = Employee::updateOrCreate(
             ['employee_code' => 'SPV001'],
             [
-                'user_id' => User::where('email', 'andi.pratama@example.com')->firstOrFail()->id,
+                'user_id' => $this->createUser('Andi Pratama', 'andi.pratama@example.com', 'supervisor')->id,
                 'division_id' => $operational->id,
                 'position_id' => $supervisorPosition->id,
                 'supervisor_id' => null,
@@ -42,7 +42,7 @@ class EmployeeSeeder extends Seeder
         $siti = Employee::updateOrCreate(
             ['employee_code' => 'SPV002'],
             [
-                'user_id' => User::where('email', 'siti.rahma@example.com')->firstOrFail()->id,
+                'user_id' => $this->createUser('Siti Rahma', 'siti.rahma@example.com', 'supervisor')->id,
                 'division_id' => $fieldTechnician->id,
                 'position_id' => $supervisorPosition->id,
                 'supervisor_id' => null,
@@ -100,7 +100,7 @@ class EmployeeSeeder extends Seeder
             Employee::updateOrCreate(
                 ['employee_code' => $employee['employee_code']],
                 [
-                    'user_id' => User::where('email', $employee['email'])->firstOrFail()->id,
+                    'user_id' => $this->createUser($employee['name'], $employee['email'], 'employee')->id,
                     'division_id' => $employee['division_id'],
                     'position_id' => $employee['position_id'],
                     'supervisor_id' => $employee['supervisor_id'],
@@ -111,5 +111,17 @@ class EmployeeSeeder extends Seeder
                 ],
             );
         }
+    }
+
+    protected function createUser(string $name, string $email, string $role): User
+    {
+        return User::updateOrCreate(
+            ['email' => $email],
+            [
+                'name' => $name,
+                'password' => 'password',
+                'role' => $role,
+            ],
+        );
     }
 }
