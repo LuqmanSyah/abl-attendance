@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Employees\Tables;
 
+use App\Models\Division;
+use App\Models\Position;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -47,12 +49,18 @@ class EmployeesTable
                     ->sortable(),
             ])
             ->filters([
-                SelectFilter::make('division')
+                SelectFilter::make('division_id')
                     ->label('Divisi')
-                    ->relationship('division', 'name'),
-                SelectFilter::make('position')
+                    ->options(fn (): array => Division::query()
+                        ->orderBy('name')
+                        ->pluck('name', 'id')
+                        ->all()),
+                SelectFilter::make('position_id')
                     ->label('Jabatan')
-                    ->relationship('position', 'name'),
+                    ->options(fn (): array => Position::query()
+                        ->orderBy('name')
+                        ->pluck('name', 'id')
+                        ->all()),
                 SelectFilter::make('status')
                     ->label('Status')
                     ->options([
