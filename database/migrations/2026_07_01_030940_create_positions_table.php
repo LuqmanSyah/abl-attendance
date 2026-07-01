@@ -15,6 +15,8 @@ return new class extends Migration
             $table->id();
             $table->string('name')->unique();
             $table->text('description')->nullable();
+            $table->boolean('requires_superior')->default(false);
+            $table->boolean('can_be_superior')->default(false);
             $table->timestamps();
         });
     }

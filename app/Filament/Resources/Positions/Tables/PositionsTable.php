@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Positions\Tables;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
@@ -22,6 +23,12 @@ class PositionsTable
                     ->label('Jumlah Pegawai')
                     ->counts('employees')
                     ->sortable(),
+                IconColumn::make('requires_superior')
+                    ->label('Butuh Atasan')
+                    ->boolean(),
+                IconColumn::make('can_be_superior')
+                    ->label('Bisa Menjadi Atasan')
+                    ->boolean(),
                 TextColumn::make('created_at')
                     ->label('Dibuat')
                     ->dateTime()

@@ -3,11 +3,15 @@
 namespace App\Filament\Resources\Employees\Schemas;
 
 use App\Models\Employee;
+use App\Models\Position;
 use App\Models\User;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Illuminate\Database\Eloquent\Builder;
 
 class EmployeeForm
 {
@@ -56,11 +60,29 @@ class EmployeeForm
                     ->label('Jabatan')
                     ->relationship('position', 'name')
                     ->required()
+                    ->live()
+                    ->afterStateUpdated(static function (Set $set, mixed $state): void {
+                        if (! self::positionRequiresSuperior($state)) {
+                            $set('superior_id', null);
+                        }
+                    })
                     ->searchable()
                     ->preload(),
-                Select::make('supervisor_id')
-                    ->label('Supervisor')
-                    ->relationship('supervisor', 'name')
+                Select::make('superior_id')
+                    ->label('Atasan Langsung')
+                    ->relationship(
+                        'superior',
+                        'name',
+                        static fn (Builder $query): Builder => $query->eligibleSuperiors(),
+                        ignoreRecord: true,
+                    )
+                    ->required(static fn (Get $get): bool => self::positionRequiresSuperior($get('position_id')))
+                    ->visible(static fn (Get $get): bool => self::positionRequiresSuperior($get('position_id')))
+                    ->scopedExists(
+                        Employee::class,
+                        'id',
+                        static fn (Builder $query): Builder => $query->eligibleSuperiors(),
+                    )
                     ->searchable()
                     ->preload(),
                 Select::make('status')
@@ -75,5 +97,16 @@ class EmployeeForm
                     ->label('Alamat')
                     ->columnSpanFull(),
             ]);
+    }
+
+    protected static function positionRequiresSuperior(mixed $positionId): bool
+    {
+        if (blank($positionId)) {
+            return false;
+        }
+
+        return (bool) Position::query()
+            ->whereKey($positionId)
+            ->value('requires_superior');
     }
 }

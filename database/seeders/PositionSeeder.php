@@ -16,29 +16,43 @@ class PositionSeeder extends Seeder
             [
                 'name' => 'Admin',
                 'description' => 'Mengelola data master dan konfigurasi sistem.',
+                'requires_superior' => false,
+                'can_be_superior' => false,
             ],
             [
                 'name' => 'Staff',
                 'description' => 'Melaksanakan tugas operasional sesuai divisi.',
+                'requires_superior' => true,
+                'can_be_superior' => false,
             ],
             [
                 'name' => 'Supervisor',
                 'description' => 'Mengawasi pegawai dan melakukan validasi absensi.',
+                'requires_superior' => false,
+                'can_be_superior' => true,
             ],
             [
                 'name' => 'Manager',
                 'description' => 'Mengelola koordinasi lintas divisi dan laporan.',
+                'requires_superior' => false,
+                'can_be_superior' => true,
             ],
             [
                 'name' => 'Koordinator Lapangan',
                 'description' => 'Mengatur aktivitas dan penugasan personel lapangan.',
+                'requires_superior' => true,
+                'can_be_superior' => true,
             ],
         ];
 
         foreach ($positions as $position) {
             Position::updateOrCreate(
                 ['name' => $position['name']],
-                ['description' => $position['description']],
+                [
+                    'description' => $position['description'],
+                    'requires_superior' => $position['requires_superior'],
+                    'can_be_superior' => $position['can_be_superior'],
+                ],
             );
         }
     }

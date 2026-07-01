@@ -30,6 +30,10 @@ class CreateEmployee extends CreateRecord
 
         unset($data['email'], $data['password']);
 
+        if (! $this->positionRequiresSuperior($data['position_id'] ?? null)) {
+            $data['superior_id'] = null;
+        }
+
         return $data;
     }
 
@@ -57,5 +61,16 @@ class CreateEmployee extends CreateRecord
         return strcasecmp($position?->name ?? '', 'Supervisor') === 0
             ? 'supervisor'
             : 'employee';
+    }
+
+    protected function positionRequiresSuperior(int|string|null $positionId): bool
+    {
+        if (blank($positionId)) {
+            return false;
+        }
+
+        return (bool) Position::query()
+            ->whereKey($positionId)
+            ->value('requires_superior');
     }
 }

@@ -10,7 +10,17 @@ class Position extends Model
     protected $fillable = [
         'name',
         'description',
+        'requires_superior',
+        'can_be_superior',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'requires_superior' => 'boolean',
+            'can_be_superior' => 'boolean',
+        ];
+    }
 
     public function employees(): HasMany
     {

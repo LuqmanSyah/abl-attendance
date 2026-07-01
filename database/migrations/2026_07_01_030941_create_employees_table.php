@@ -16,7 +16,7 @@ return new class extends Migration
             $table->foreignId('user_id')->nullable()->unique()->constrained()->nullOnDelete();
             $table->foreignId('division_id')->constrained()->restrictOnDelete();
             $table->foreignId('position_id')->constrained()->restrictOnDelete();
-            $table->foreignId('supervisor_id')->nullable()->constrained('employees')->nullOnDelete();
+            $table->foreignId('superior_id')->nullable()->constrained('employees')->nullOnDelete();
             $table->string('employee_code')->unique();
             $table->string('name');
             $table->string('phone')->nullable();

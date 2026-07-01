@@ -33,8 +33,8 @@ class EmployeesTable
                 TextColumn::make('position.name')
                     ->label('Jabatan')
                     ->sortable(),
-                TextColumn::make('supervisor.name')
-                    ->label('Supervisor')
+                TextColumn::make('superior.name')
+                    ->label('Atasan Langsung')
                     ->toggleable(),
                 TextColumn::make('status')
                     ->label('Status')
