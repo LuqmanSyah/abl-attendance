@@ -201,17 +201,26 @@ DB_PASSWORD=
 
 Sesuaikan `DB_USERNAME` dan `DB_PASSWORD` dengan konfigurasi database lokal.
 
-### 8.7 Jalankan Migration
+### 8.7 Jalankan Migration dan Seeder
 
 ```bash
-php artisan migrate
+php artisan migrate --seed
 ```
 
-### 8.8 Buat User Admin Filament
+Seeder akan membuat akun admin lokal:
+
+```text
+Email    : admin@example.com
+Password : password
+```
+
+### 8.8 Buat User Admin Filament Manual
 
 ```bash
 php artisan make:filament-user
 ```
+
+Gunakan command ini jika tidak memakai seeder atau ingin membuat akun admin tambahan.
 
 ### 8.9 Jalankan Project
 
@@ -250,11 +259,11 @@ composer create-project laravel/laravel:^12.0 abl-attendance
 
 cd abl-attendance
 
-composer require filament/filament:"^4.0"
+composer require filament/filament:"^5.0"
 
 php artisan filament:install --panels
 
-php artisan migrate
+php artisan migrate --seed
 
 php artisan make:filament-user
 
