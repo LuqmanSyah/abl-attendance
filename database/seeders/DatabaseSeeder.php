@@ -2,9 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\Division;
-use App\Models\Position;
-use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -17,21 +14,11 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        User::firstOrCreate(
-            ['email' => 'admin@example.com'],
-            [
-                'name' => 'Admin',
-                'password' => 'password',
-                'role' => 'admin',
-            ],
-        );
-
-        foreach (['Operasional', 'Administrasi', 'Keamanan'] as $division) {
-            Division::firstOrCreate(['name' => $division]);
-        }
-
-        foreach (['Staff', 'Supervisor', 'Manager'] as $position) {
-            Position::firstOrCreate(['name' => $position]);
-        }
+        $this->call([
+            UserSeeder::class,
+            DivisionSeeder::class,
+            PositionSeeder::class,
+            EmployeeSeeder::class,
+        ]);
     }
 }
