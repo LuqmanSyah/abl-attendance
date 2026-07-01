@@ -13,11 +13,6 @@ class EmployeeForm
     {
         return $schema
             ->components([
-                Select::make('user_id')
-                    ->label('Akun Login')
-                    ->relationship('user', 'name')
-                    ->searchable()
-                    ->preload(),
                 TextInput::make('employee_code')
                     ->label('Kode Pegawai')
                     ->required()
@@ -26,6 +21,10 @@ class EmployeeForm
                 TextInput::make('name')
                     ->label('Nama Pegawai')
                     ->required()
+                    ->maxLength(255),
+                TextInput::make('phone')
+                    ->label('No. Telepon')
+                    ->tel()
                     ->maxLength(255),
                 Select::make('division_id')
                     ->label('Divisi')
@@ -44,10 +43,6 @@ class EmployeeForm
                     ->relationship('supervisor', 'name')
                     ->searchable()
                     ->preload(),
-                TextInput::make('phone')
-                    ->label('No. Telepon')
-                    ->tel()
-                    ->maxLength(255),
                 Select::make('status')
                     ->label('Status')
                     ->options([
