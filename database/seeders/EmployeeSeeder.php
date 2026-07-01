@@ -28,7 +28,7 @@ class EmployeeSeeder extends Seeder
         $andi = Employee::updateOrCreate(
             ['employee_code' => 'SPV001'],
             [
-                'user_id' => $this->createUser('Andi Pratama', 'andi.pratama@example.com', 'supervisor')->id,
+                'user_id' => $this->createUser('Andi Pratama', 'andi.pratama@example.com', $supervisorPosition)->id,
                 'division_id' => $operational->id,
                 'position_id' => $supervisorPosition->id,
                 'superior_id' => null,
@@ -42,7 +42,7 @@ class EmployeeSeeder extends Seeder
         $siti = Employee::updateOrCreate(
             ['employee_code' => 'SPV002'],
             [
-                'user_id' => $this->createUser('Siti Rahma', 'siti.rahma@example.com', 'supervisor')->id,
+                'user_id' => $this->createUser('Siti Rahma', 'siti.rahma@example.com', $supervisorPosition)->id,
                 'division_id' => $fieldTechnician->id,
                 'position_id' => $supervisorPosition->id,
                 'superior_id' => null,
@@ -100,7 +100,11 @@ class EmployeeSeeder extends Seeder
             Employee::updateOrCreate(
                 ['employee_code' => $employee['employee_code']],
                 [
-                    'user_id' => $this->createUser($employee['name'], $employee['email'], 'employee')->id,
+                    'user_id' => $this->createUser(
+                        $employee['name'],
+                        $employee['email'],
+                        Position::findOrFail($employee['position_id']),
+                    )->id,
                     'division_id' => $employee['division_id'],
                     'position_id' => $employee['position_id'],
                     'superior_id' => $employee['superior_id'],
@@ -113,15 +117,22 @@ class EmployeeSeeder extends Seeder
         }
     }
 
-    protected function createUser(string $name, string $email, string $role): User
+    protected function createUser(string $name, string $email, Position $position): User
     {
         return User::updateOrCreate(
             ['email' => $email],
             [
                 'name' => $name,
                 'password' => 'password',
-                'role' => $role,
+                'role' => $this->resolveRole($position),
             ],
         );
+    }
+
+    protected function resolveRole(Position $position): string
+    {
+        return $position->can_be_superior
+            ? 'supervisor'
+            : 'employee';
     }
 }
