@@ -182,24 +182,28 @@ php artisan key:generate
 
 ### 8.6 Setup Database
 
-Buat database MySQL:
+Jalankan MySQL lewat Docker Compose:
 
-```sql
-CREATE DATABASE abl_attendance;
+```bash
+docker compose up -d
 ```
 
-Lalu ubah konfigurasi `.env`:
+Konfigurasi `.env` default untuk Docker:
 
 ```env
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
-DB_PORT=3306
+DB_PORT=13306
 DB_DATABASE=abl_attendance
 DB_USERNAME=root
-DB_PASSWORD=
+DB_PASSWORD=p455w0rd
 ```
 
-Sesuaikan `DB_USERNAME` dan `DB_PASSWORD` dengan konfigurasi database lokal.
+Pastikan container database sudah berjalan:
+
+```bash
+docker compose ps
+```
 
 ### 8.7 Jalankan Migration dan Seeder
 
