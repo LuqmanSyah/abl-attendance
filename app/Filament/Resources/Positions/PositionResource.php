@@ -25,6 +25,10 @@ class PositionResource extends Resource
 
     protected static ?string $navigationLabel = 'Jabatan';
 
+    protected static ?string $modelLabel = 'jabatan';
+
+    protected static ?string $pluralModelLabel = 'Jabatan';
+
     protected static ?int $navigationSort = 2;
 
     protected static ?string $recordTitleAttribute = 'name';

@@ -25,6 +25,10 @@ class DivisionResource extends Resource
 
     protected static ?string $navigationLabel = 'Divisi';
 
+    protected static ?string $modelLabel = 'divisi';
+
+    protected static ?string $pluralModelLabel = 'Divisi';
+
     protected static ?int $navigationSort = 1;
 
     protected static ?string $recordTitleAttribute = 'name';

@@ -10,10 +10,13 @@ class ListPositions extends ListRecords
 {
     protected static string $resource = PositionResource::class;
 
+    protected static ?string $title = 'Jabatan';
+
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make(),
+            CreateAction::make()
+                ->label('Tambah'),
         ];
     }
 }

@@ -10,10 +10,13 @@ class ListDivisions extends ListRecords
 {
     protected static string $resource = DivisionResource::class;
 
+    protected static ?string $title = 'Divisi';
+
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make(),
+            CreateAction::make()
+                ->label('Tambah'),
         ];
     }
 }

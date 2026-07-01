@@ -32,12 +32,20 @@ class PositionsTable
                 //
             ])
             ->recordActions([
-                EditAction::make(),
+                EditAction::make()
+                    ->label('Ubah'),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                ]),
+                    DeleteBulkAction::make()
+                        ->label('Hapus data terpilih')
+                        ->modalHeading('Hapus Jabatan terpilih')
+                        ->modalDescription('Apakah Anda yakin ingin menghapus jabatan yang dipilih?')
+                        ->modalSubmitActionLabel('Hapus')
+                        ->modalCancelActionLabel('Batal')
+                        ->successNotificationTitle('Jabatan berhasil dihapus'),
+                ])
+                    ->label('Aksi massal'),
             ]);
     }
 }
