@@ -21,9 +21,8 @@ class EmployeeSeeder extends Seeder
         $logistic = Division::where('name', 'Logistik')->firstOrFail();
         $fieldTechnician = Division::where('name', 'Teknisi Lapangan')->firstOrFail();
 
-        $staff = Position::where('name', 'Staff')->firstOrFail();
-        $supervisorPosition = Position::where('name', 'Supervisor')->firstOrFail();
-        $fieldCoordinator = Position::where('name', 'Koordinator Lapangan')->firstOrFail();
+        $employeePosition = Position::where('name', 'Pegawai')->firstOrFail();
+        $supervisorPosition = Position::where('name', 'Atasan')->firstOrFail();
 
         $andi = Employee::updateOrCreate(
             ['employee_code' => 'SPV001'],
@@ -59,7 +58,7 @@ class EmployeeSeeder extends Seeder
                 'name' => 'Budi Santoso',
                 'email' => 'budi.santoso@example.com',
                 'division_id' => $operational->id,
-                'position_id' => $staff->id,
+                'position_id' => $employeePosition->id,
                 'superior_id' => $andi->id,
                 'phone' => '081234560101',
                 'address' => 'Jl. Kenanga No. 5, Jakarta',
@@ -69,7 +68,7 @@ class EmployeeSeeder extends Seeder
                 'name' => 'Rina Lestari',
                 'email' => 'rina.lestari@example.com',
                 'division_id' => $administration->id,
-                'position_id' => $staff->id,
+                'position_id' => $employeePosition->id,
                 'superior_id' => $andi->id,
                 'phone' => '081234560102',
                 'address' => 'Jl. Melati No. 8, Jakarta',
@@ -79,7 +78,7 @@ class EmployeeSeeder extends Seeder
                 'name' => 'Dedi Kurniawan',
                 'email' => 'dedi.kurniawan@example.com',
                 'division_id' => $security->id,
-                'position_id' => $fieldCoordinator->id,
+                'position_id' => $employeePosition->id,
                 'superior_id' => $siti->id,
                 'phone' => '081234560103',
                 'address' => 'Jl. Anggrek No. 12, Jakarta',
@@ -89,7 +88,7 @@ class EmployeeSeeder extends Seeder
                 'name' => 'Maya Putri',
                 'email' => 'maya.putri@example.com',
                 'division_id' => $logistic->id,
-                'position_id' => $staff->id,
+                'position_id' => $employeePosition->id,
                 'superior_id' => $siti->id,
                 'phone' => '081234560104',
                 'address' => 'Jl. Cempaka No. 15, Jakarta',

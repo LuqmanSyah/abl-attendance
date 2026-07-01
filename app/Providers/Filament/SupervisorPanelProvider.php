@@ -3,6 +3,8 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Supervisor\Pages\SupervisorDashboard;
+use App\Filament\Supervisor\Resources\DutyAssignments\DutyAssignmentResource;
+use App\Filament\Supervisor\Resources\DutyAttendanceRecords\DutyAttendanceRecordResource;
 use App\Http\Middleware\AuthenticateFilamentPanel;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -28,6 +30,10 @@ class SupervisorPanelProvider extends PanelProvider
             ->brandName('ABL Attendance Atasan')
             ->colors([
                 'primary' => Color::Blue,
+            ])
+            ->resources([
+                DutyAssignmentResource::class,
+                DutyAttendanceRecordResource::class,
             ])
             ->pages([
                 SupervisorDashboard::class,

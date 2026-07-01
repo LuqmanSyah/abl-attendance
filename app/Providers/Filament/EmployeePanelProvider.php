@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Employee\Pages\DutyAttendance;
 use App\Filament\Employee\Pages\EmployeeDashboard;
 use App\Http\Middleware\AuthenticateFilamentPanel;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -31,6 +32,7 @@ class EmployeePanelProvider extends PanelProvider
             ])
             ->pages([
                 EmployeeDashboard::class,
+                DutyAttendance::class,
             ])
             ->widgets([
                 AccountWidget::class,

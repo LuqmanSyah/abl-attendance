@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Position;
 use App\Models\User;
 use Database\Seeders\DivisionSeeder;
 use Database\Seeders\EmployeeSeeder;
@@ -25,8 +26,9 @@ class EmployeeSeederTest extends TestCase
             'email' => 'admin@example.com',
         ]);
 
+        $this->assertEqualsCanonicalizing(['Atasan', 'Pegawai'], Position::query()->pluck('name')->all());
         $this->assertSame('supervisor', User::where('email', 'andi.pratama@example.com')->value('role'));
-        $this->assertSame('supervisor', User::where('email', 'dedi.kurniawan@example.com')->value('role'));
+        $this->assertSame('employee', User::where('email', 'dedi.kurniawan@example.com')->value('role'));
         $this->assertSame('employee', User::where('email', 'budi.santoso@example.com')->value('role'));
     }
 }

@@ -15,9 +15,25 @@ return new class extends Migration
             $table->id();
             $table->foreignId('employee_id')->constrained()->cascadeOnDelete();
             $table->date('attendance_date');
+            $table->string('attendance_type')->default('office')->index();
+            $table->foreignId('duty_assignment_id')->nullable()->constrained()->nullOnDelete();
             $table->timestamp('check_in_at')->nullable();
+            $table->decimal('check_in_latitude', 10, 7)->nullable();
+            $table->decimal('check_in_longitude', 10, 7)->nullable();
+            $table->decimal('check_in_accuracy', 8, 2)->nullable();
+            $table->unsignedInteger('check_in_distance_meters')->nullable();
+            $table->string('check_in_location_status')->nullable();
             $table->timestamp('check_out_at')->nullable();
+            $table->decimal('check_out_latitude', 10, 7)->nullable();
+            $table->decimal('check_out_longitude', 10, 7)->nullable();
+            $table->decimal('check_out_accuracy', 8, 2)->nullable();
+            $table->unsignedInteger('check_out_distance_meters')->nullable();
+            $table->string('check_out_location_status')->nullable();
             $table->string('status')->default('present')->index();
+            $table->string('verification_status')->default('approved')->index();
+            $table->foreignId('verified_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->timestamp('verified_at')->nullable();
+            $table->text('verification_notes')->nullable();
             $table->text('notes')->nullable();
             $table->timestamps();
 

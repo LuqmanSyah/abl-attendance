@@ -58,6 +58,16 @@ class Employee extends Model
         return $this->hasMany(AttendanceRecord::class);
     }
 
+    public function dutyAssignments(): HasMany
+    {
+        return $this->hasMany(DutyAssignment::class);
+    }
+
+    public function supervisedDutyAssignments(): HasMany
+    {
+        return $this->hasMany(DutyAssignment::class, 'supervisor_id');
+    }
+
     public function attendanceCorrections(): HasMany
     {
         return $this->hasMany(AttendanceCorrection::class);

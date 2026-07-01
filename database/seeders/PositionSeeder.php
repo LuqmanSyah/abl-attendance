@@ -14,33 +14,15 @@ class PositionSeeder extends Seeder
     {
         $positions = [
             [
-                'name' => 'Admin',
-                'description' => 'Mengelola data master dan konfigurasi sistem.',
-                'requires_superior' => false,
-                'can_be_superior' => false,
-            ],
-            [
-                'name' => 'Staff',
+                'name' => 'Pegawai',
                 'description' => 'Melaksanakan tugas operasional sesuai divisi.',
                 'requires_superior' => true,
                 'can_be_superior' => false,
             ],
             [
-                'name' => 'Supervisor',
+                'name' => 'Atasan',
                 'description' => 'Mengawasi pegawai dan melakukan validasi absensi.',
                 'requires_superior' => false,
-                'can_be_superior' => true,
-            ],
-            [
-                'name' => 'Manager',
-                'description' => 'Mengelola koordinasi lintas divisi dan laporan.',
-                'requires_superior' => false,
-                'can_be_superior' => true,
-            ],
-            [
-                'name' => 'Koordinator Lapangan',
-                'description' => 'Mengatur aktivitas dan penugasan personel lapangan.',
-                'requires_superior' => true,
                 'can_be_superior' => true,
             ],
         ];

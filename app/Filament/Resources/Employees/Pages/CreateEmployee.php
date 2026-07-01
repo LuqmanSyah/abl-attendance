@@ -58,7 +58,7 @@ class CreateEmployee extends CreateRecord
     {
         $position = Position::find($positionId);
 
-        return strcasecmp($position?->name ?? '', 'Supervisor') === 0
+        return (bool) $position?->can_be_superior
             ? 'supervisor'
             : 'employee';
     }
