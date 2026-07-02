@@ -153,6 +153,37 @@ class DutyAttendanceTest extends TestCase
             ->assertOk();
     }
 
+    public function test_duty_attendance_page_shows_today_assignment_that_is_not_active_yet(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-07-02 09:00:00'));
+
+        [$supervisor, $employee] = $this->createSupervisorAndEmployee();
+
+        DutyAssignment::create([
+            'employee_id' => $employee->id,
+            'supervisor_id' => $supervisor->id,
+            'title' => 'Dinas Sore',
+            'location_name' => 'Kantor Klien',
+            'latitude' => -6.2000000,
+            'longitude' => 106.8166667,
+            'radius_meters' => 100,
+            'starts_at' => Carbon::parse('2026-07-02 15:00:00'),
+            'ends_at' => Carbon::parse('2026-07-02 17:00:00'),
+            'status' => 'active',
+        ]);
+
+        try {
+            $this->actingAs($employee->user)
+                ->get('/pegawai/absensi-dinas')
+                ->assertOk()
+                ->assertSee('Dinas Sore')
+                ->assertSee('Belum mulai')
+                ->assertDontSee('Tidak ada penugasan dinas untuk tanggal ini.');
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
     /**
      * @return array{0: Employee, 1: Employee}
      */

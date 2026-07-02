@@ -4,6 +4,7 @@ namespace App\Providers\Filament;
 
 use App\Filament\Employee\Pages\DutyAttendance;
 use App\Filament\Employee\Pages\EmployeeDashboard;
+use App\Filament\Employee\Pages\OfficeAttendance;
 use App\Http\Middleware\AuthenticateFilamentPanel;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -32,6 +33,7 @@ class EmployeePanelProvider extends PanelProvider
             ])
             ->pages([
                 EmployeeDashboard::class,
+                OfficeAttendance::class,
                 DutyAttendance::class,
             ])
             ->widgets([

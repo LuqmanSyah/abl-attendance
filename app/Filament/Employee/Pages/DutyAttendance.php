@@ -30,7 +30,7 @@ class DutyAttendance extends Page
     /**
      * @return Collection<int, DutyAssignment>
      */
-    public function getActiveAssignmentsProperty(): Collection
+    public function getTodayAssignmentsProperty(): Collection
     {
         $employee = Filament::auth()->user()?->employee;
 
@@ -38,12 +38,16 @@ class DutyAttendance extends Page
             return new Collection;
         }
 
+        $todayStartsAt = now()->startOfDay();
+        $todayEndsAt = now()->endOfDay();
+
         return DutyAssignment::query()
             ->with(['attendanceRecords' => fn ($query) => $query
                 ->where('employee_id', $employee->id)
                 ->where('attendance_date', now()->toDateString())])
             ->where('employee_id', $employee->id)
-            ->activeAt()
+            ->where('starts_at', '<=', $todayEndsAt)
+            ->where('ends_at', '>=', $todayStartsAt)
             ->orderBy('starts_at')
             ->get();
     }
