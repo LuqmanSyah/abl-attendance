@@ -116,6 +116,7 @@ divisions
 positions
 attendance_records
 attendance_corrections
+duty_assignments
 ```
 
 ### Penjelasan Tabel
@@ -128,6 +129,7 @@ attendance_corrections
 | positions              | Menyimpan data jabatan                  |
 | attendance_records     | Menyimpan data absensi masuk dan pulang |
 | attendance_corrections | Menyimpan pengajuan koreksi absensi     |
+| duty_assignments       | Menyimpan penugasan dinas pegawai       |
 
 ---
 
@@ -141,9 +143,20 @@ divisions 1 - many employees
 positions 1 - many employees
 employees 1 - many attendance_records
 employees 1 - many attendance_corrections
+employees 1 - many duty_assignments
 supervisor employees 1 - many employees
 attendance_records 1 - many attendance_corrections
+duty_assignments 1 - many attendance_records
 ```
+
+### Catatan: DutyAssignment
+
+`duty_assignments` menyimpan penugasan dinas pegawai (luar kantor). Sebelum pegawai bisa absen dinas (`attendance_type = 'duty'`), harus ada `DutyAssignment` aktif yang dimilikinya untuk tanggal tersebut.
+
+- Dibuat oleh Supervisor atau Admin dari panel masing-masing.
+- `DutyAttendanceManager` memeriksa `DutyAssignment::activeAt($date)` saat pegawai check-in dinas.
+- Absensi dinas (`attendance_type = 'duty'`) memiliki `verification_status = 'pending'` saat dibuat, dan perlu diverifikasi Supervisor.
+- Absensi kantor (`attendance_type = 'office'`) langsung `verification_status = 'approved'` — tidak perlu verifikasi manual.
 
 ---
 
@@ -216,6 +229,53 @@ Seeder akan membuat akun admin lokal:
 ```text
 Email    : admin@example.com
 Password : password
+```
+
+### 8.8 Konfigurasi Koordinat Kantor
+
+Setelah copy `.env`, isi nilai koordinat kantor untuk fitur absensi kantor:
+
+```env
+ATTENDANCE_OFFICE_LATITUDE=-6.2088
+ATTENDANCE_OFFICE_LONGITUDE=106.8456
+ATTENDANCE_OFFICE_RADIUS_METERS=100
+```
+
+Ganti dengan koordinat kantor aktual sebelum deploy ke production.
+File konfigurasi `config/attendance.php` membaca env var ini otomatis.
+
+### 8.9 Buat User Admin Filament Manual
+
+```bash
+php artisan make:filament-user
+```
+
+Gunakan command ini jika tidak memakai seeder atau ingin membuat akun admin tambahan.
+
+### 8.10 Jalankan Project
+
+Terminal 1:
+
+```bash
+php artisan serve
+```
+
+Terminal 2:
+
+```bash
+npm run dev
+```
+
+Akses aplikasi:
+
+```text
+http://127.0.0.1:8000
+```
+
+Akses admin panel Filament:
+
+```text
+http://127.0.0.1:8000/admin
 ```
 
 ---
@@ -377,43 +437,9 @@ Modul menentukan menu, widget dashboard, halaman, dan aksi yang boleh digunakan.
 
 Pola ini lebih mudah dikembangkan dibanding membuat dashboard manual untuk setiap jabatan. Jika nanti ada jabatan baru, cukup hubungkan jabatan tersebut ke modul yang sesuai.
 
-### 8.8 Buat User Admin Filament Manual
-
-```bash
-php artisan make:filament-user
-```
-
-Gunakan command ini jika tidak memakai seeder atau ingin membuat akun admin tambahan.
-
-### 8.9 Jalankan Project
-
-Terminal 1:
-
-```bash
-php artisan serve
-```
-
-Terminal 2:
-
-```bash
-npm run dev
-```
-
-Akses aplikasi:
-
-```text
-http://127.0.0.1:8000
-```
-
-Akses admin panel Filament:
-
-```text
-http://127.0.0.1:8000/admin
-```
-
 ---
 
-## 9. Command Setup Project dari Nol
+## 10. Command Setup Project dari Nol
 
 Jika project belum dibuat sama sekali, gunakan command berikut:
 
@@ -435,7 +461,7 @@ php artisan serve
 
 ---
 
-## 10. Command Pembuatan Model Awal
+## 11. Command Pembuatan Model Awal
 
 Gunakan command berikut untuk membuat model dan migration:
 
@@ -455,7 +481,7 @@ php artisan migrate
 
 ---
 
-## 11. Command Pembuatan Filament Resource
+## 12. Command Pembuatan Filament Resource
 
 Setelah model dan migration selesai, buat resource Filament:
 
@@ -471,7 +497,7 @@ Resource digunakan untuk membuat halaman CRUD di panel admin.
 
 ---
 
-## 12. Alur Absensi
+## 13. Alur Absensi
 
 Alur dasar absensi:
 
@@ -488,7 +514,7 @@ Alur dasar absensi:
 
 ---
 
-## 13. Alur Koreksi Absensi
+## 14. Alur Koreksi Absensi
 
 Alur koreksi absensi:
 
@@ -504,7 +530,7 @@ Alur koreksi absensi:
 
 ---
 
-## 14. Status Absensi
+## 15. Status Absensi
 
 Status absensi yang digunakan:
 
@@ -534,7 +560,7 @@ Penjelasan:
 
 ---
 
-## 15. Rekomendasi Urutan Pengerjaan
+## 16. Rekomendasi Urutan Pengerjaan
 
 Urutan pengerjaan project:
 
@@ -559,7 +585,7 @@ Urutan pengerjaan project:
 
 ---
 
-## 16. Pembagian Tugas Tim
+## 17. Pembagian Tugas Tim
 
 Rekomendasi pembagian tugas untuk tim:
 
@@ -576,7 +602,7 @@ Rekomendasi pembagian tugas untuk tim:
 
 ---
 
-## 17. Aturan Pengembangan
+## 18. Aturan Pengembangan
 
 Beberapa aturan coding yang perlu diikuti:
 
@@ -592,7 +618,7 @@ Beberapa aturan coding yang perlu diikuti:
 
 ---
 
-## 18. Naming Convention
+## 19. Naming Convention
 
 Contoh penamaan:
 
@@ -607,7 +633,7 @@ Foreign Key        : employee_id
 
 ---
 
-## 19. Batasan Project
+## 20. Batasan Project
 
 Fitur yang tidak termasuk MVP:
 
@@ -627,7 +653,7 @@ Fitur tersebut boleh dijadikan pengembangan lanjutan, tetapi tidak menjadi fokus
 
 ---
 
-## 20. Catatan untuk AI Agent
+## 21. Catatan untuk AI Agent
 
 AI Agent harus mengikuti konteks berikut:
 
@@ -661,7 +687,7 @@ Jika ada pilihan implementasi, pilih yang paling mudah dipahami oleh mahasiswa d
 
 ---
 
-## 21. Target Output Project
+## 22. Target Output Project
 
 Target akhir project:
 
@@ -678,7 +704,7 @@ Target akhir project:
 
 ---
 
-## 22. Catatan Desain: Menu Sidebar Fleksibel Tanpa Ubah Kode
+## 23. Catatan Desain: Menu Sidebar Fleksibel Tanpa Ubah Kode
 
 Klarifikasi diskusi pada 1 Juli 2026:
 
@@ -753,6 +779,6 @@ Konfigurasi jabatan ke modul disimpan di database agar fleksibel tanpa ubah kode
 
 ---
 
-## 23. Lisensi
+## 24. Lisensi
 
 Project ini dibuat untuk kebutuhan pembelajaran dan tugas mata kuliah ABL.
