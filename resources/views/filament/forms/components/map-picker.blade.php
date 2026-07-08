@@ -1,21 +1,19 @@
 @php
     $id = $getId();
+    $googleMapsApiKey = config('services.google_maps.key');
 @endphp
 
 <x-dynamic-component :component="$getFieldWrapperView()" :field="$field">
     <div
         x-data="{
             map: null,
-            markerFeature: null,
-            circleFeature: null,
-            markerSource: null,
-            circleSource: null,
-            modifyInteraction: null,
+            marker: null,
+            circle: null,
+            autocomplete: null,
             locating: false,
             searchMessage: null,
             searchQuery: '',
-            searchResults: [],
-            searchingLocation: false,
+            googleMapsApiKey: @js($googleMapsApiKey),
             locationTimeoutId: null,
             locationWatchId: null,
             resizeObserver: null,
@@ -27,166 +25,161 @@
                     return;
                 }
 
-                await this.loadOpenLayers();
+                this.ensureGoogleMapsCriticalStyles();
+
+                if (! this.googleMapsApiKey) {
+                    this.searchMessage = 'Google Maps API key belum dikonfigurasi.';
+
+                    return;
+                }
+
+                try {
+                    await this.loadGoogleMaps();
+                } catch (error) {
+                    this.searchMessage = 'Google Maps gagal dimuat.';
+
+                    return;
+                }
 
                 const fallbackLatitude = -6.2000000;
                 const fallbackLongitude = 106.8166667;
                 const lat = Number(this.latitude || fallbackLatitude);
                 const lng = Number(this.longitude || fallbackLongitude);
-                const center = ol.proj.fromLonLat([lng, lat]);
+                const position = { lat, lng };
 
-                this.markerFeature = new ol.Feature({
-                    geometry: new ol.geom.Point(center),
-                });
-                this.markerFeature.setStyle(
-                    new ol.style.Style({
-                        image: new ol.style.Circle({
-                            radius: 9,
-                            fill: new ol.style.Fill({ color: '#f59e0b' }),
-                            stroke: new ol.style.Stroke({ color: '#111827', width: 3 }),
-                        }),
-                    }),
-                );
-
-                this.circleFeature = new ol.Feature({
-                    geometry: new ol.geom.Circle(center, Number(this.radius || 100)),
-                });
-                this.circleFeature.setStyle(
-                    new ol.style.Style({
-                        fill: new ol.style.Fill({ color: 'rgba(245, 158, 11, 0.16)' }),
-                        stroke: new ol.style.Stroke({ color: 'rgba(245, 158, 11, 0.88)', width: 3 }),
-                    }),
-                );
-
-                this.markerSource = new ol.source.Vector({ features: [this.markerFeature] });
-                this.circleSource = new ol.source.Vector({ features: [this.circleFeature] });
-
-                this.map = new ol.Map({
-                    target: this.$refs.map,
-                    layers: [
-                        new ol.layer.Tile({
-                            preload: 2,
-                            source: new ol.source.OSM({
-                                attributions: '&copy; OpenStreetMap contributors',
-                                maxZoom: 19,
-                            }),
-                        }),
-                        new ol.layer.Vector({
-                            source: this.circleSource,
-                        }),
-                        new ol.layer.Vector({
-                            source: this.markerSource,
-                        }),
-                    ],
-                    view: new ol.View({
-                        center,
-                        zoom: 16,
-                    }),
+                this.map = new google.maps.Map(this.$refs.map, {
+                    center: position,
+                    zoom: 16,
+                    maxZoom: 20,
+                    clickableIcons: false,
+                    fullscreenControl: false,
+                    mapTypeControl: false,
+                    streetViewControl: false,
+                    zoomControl: true,
+                    zoomControlOptions: {
+                        position: google.maps.ControlPosition.RIGHT_BOTTOM,
+                    },
                 });
 
-                this.modifyInteraction = new ol.interaction.Modify({
-                    source: this.markerSource,
-                    style: null,
-                });
-                this.map.addInteraction(this.modifyInteraction);
-
-                this.modifyInteraction.on('modifyend', () => {
-                    const point = ol.proj.toLonLat(this.markerFeature.getGeometry().getCoordinates());
-
-                    this.setPointFromLonLat(point, false);
+                this.marker = new google.maps.Marker({
+                    map: this.map,
+                    position,
+                    draggable: true,
                 });
 
-                this.map.on('singleclick', (event) => {
-                    this.setPointFromLonLat(ol.proj.toLonLat(event.coordinate));
+                this.circle = new google.maps.Circle({
+                    map: this.map,
+                    center: position,
+                    radius: Number(this.radius || 100),
+                    fillColor: '#f59e0b',
+                    fillOpacity: 0.16,
+                    strokeColor: '#f59e0b',
+                    strokeOpacity: 0.88,
+                    strokeWeight: 3,
                 });
+
+                this.marker.addListener('drag', () => {
+                    const point = this.marker.getPosition();
+
+                    if (point) {
+                        this.circle.setCenter(point);
+                    }
+                });
+
+                this.marker.addListener('dragend', () => {
+                    const point = this.marker.getPosition();
+
+                    if (point) {
+                        this.setPointFromLatLng(point, false);
+                    }
+                });
+
+                this.map.addListener('click', (event) => {
+                    if (event.latLng) {
+                        this.setPointFromLatLng(event.latLng);
+                    }
+                });
+
+                this.initPlaceAutocomplete();
 
                 this.$watch('radius', (value) => {
-                    this.circleFeature
-                        ?.getGeometry()
-                        ?.setRadius(Number(value || 100));
+                    this.circle?.setRadius(Number(value || 100));
                 });
 
-                this.resizeObserver = new ResizeObserver(() => this.map?.updateSize());
+                this.resizeObserver = new ResizeObserver(() => this.resizeMap());
                 this.resizeObserver.observe(this.$refs.map);
-                requestAnimationFrame(() => this.map.updateSize());
-                setTimeout(() => this.map.updateSize(), 250);
-                setTimeout(() => this.map.updateSize(), 750);
+                requestAnimationFrame(() => this.resizeMap());
+                setTimeout(() => this.resizeMap(), 250);
+                setTimeout(() => this.resizeMap(), 750);
             },
-            async loadOpenLayers() {
-                this.ensureOpenLayersCriticalStyles();
-
-                await Promise.all([
-                    this.loadOpenLayersStylesheet(),
-                    this.loadOpenLayersScript(),
-                ]);
-            },
-            ensureOpenLayersCriticalStyles() {
-                if (document.getElementById('abl-openlayers-critical-styles')) {
+            ensureGoogleMapsCriticalStyles() {
+                if (document.getElementById('abl-google-maps-critical-styles')) {
                     return;
                 }
 
                 const style = document.createElement('style');
-                style.id = 'abl-openlayers-critical-styles';
+                style.id = 'abl-google-maps-critical-styles';
                 style.textContent = `
                     .abl-map-picker-shell { position: relative; }
-                    .abl-map-picker { background: #dbeafe; display: block; height: 26rem; min-height: 26rem; position: relative; width: 100%; }
-                    .abl-map-picker .ol-viewport { border-radius: inherit; }
-                    .abl-map-picker .ol-control { background: rgba(17, 24, 39, 0.72); border-radius: 0.5rem; padding: 0.2rem; }
-                    .abl-map-picker .ol-control button { background: rgba(255, 255, 255, 0.94); border-radius: 0.35rem; color: #111827; cursor: pointer; font-weight: 700; height: 1.8rem; line-height: 1.8rem; margin: 0.1rem; width: 1.8rem; }
-                    .abl-map-picker .ol-control button:hover { background: #f59e0b; color: #111827; }
-                    .abl-map-picker .ol-zoom { left: 0.75rem; top: 4.55rem; }
-                    .abl-map-picker .ol-attribution { background: rgba(17, 24, 39, 0.64); border-radius: 0.35rem 0 0 0; bottom: 0; color: #ffffff; font-size: 0.72rem; right: 0; }
-                    .abl-map-picker .ol-attribution a { color: #ffffff; }
-                    .abl-map-picker-overlay { align-items: center; backdrop-filter: blur(8px); background: rgba(17, 24, 39, 0.84); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 0.55rem; box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28); color: #ffffff; display: inline-flex; font-size: 0.8125rem; gap: 0.45rem; line-height: 1; padding: 0.55rem 0.75rem; position: absolute; z-index: 10; }
-                    .abl-map-picker-overlay-top { right: 0.75rem; top: 4.65rem; }
+                    .abl-map-picker-shell::after { border: 1px solid rgba(17, 24, 39, 0.12); border-radius: 0.5rem; box-shadow: inset 0 1px rgba(255, 255, 255, 0.3), 0 18px 44px rgba(15, 23, 42, 0.18); content: ''; inset: 0; pointer-events: none; position: absolute; z-index: 8; }
+                    .abl-map-picker { background: #e5e7eb; display: block; height: 26rem; min-height: 26rem; position: relative; width: 100%; }
+                    .abl-map-picker .gm-style { border-radius: inherit; }
+                    .abl-map-picker .gm-style-mtc, .abl-map-picker .gm-svpc { display: none !important; }
+                    .pac-container { border-radius: 0.75rem; box-shadow: 0 18px 36px rgba(15, 23, 42, 0.2); font-family: inherit; margin-top: 0.35rem; z-index: 9999; }
+                    .pac-item { cursor: pointer; padding: 0.45rem 0.7rem; }
+                    .pac-item-query { color: #111827; }
+                    .abl-map-picker-overlay { align-items: center; backdrop-filter: blur(14px); background: rgba(255, 255, 255, 0.9) !important; border: 1px solid rgba(17, 24, 39, 0.1); border-radius: 0.75rem; box-shadow: 0 14px 32px rgba(15, 23, 42, 0.16); color: #111827 !important; display: inline-flex; font-size: 0.8125rem; gap: 0.45rem; line-height: 1; padding: 0.55rem 0.75rem; position: absolute; z-index: 10; }
+                    .abl-map-picker-overlay-top { right: 0.75rem; top: 0.75rem; }
                     .abl-map-picker-overlay-bottom { bottom: 0.75rem; left: 0.75rem; }
                     .abl-map-picker-button { cursor: pointer; }
                     .abl-map-picker-button:disabled { cursor: wait; opacity: 0.72; }
-                    .abl-map-search { align-items: stretch; display: flex; flex-direction: column; left: 0.75rem; max-width: min(34rem, calc(100% - 1.5rem)); padding: 0.45rem; right: 0.75rem; top: 0.75rem; }
+                    .abl-map-search { align-items: stretch; display: flex; flex-direction: column; left: 0.75rem; max-width: calc(100% - 15rem); padding: 0.45rem; right: auto; top: 0.75rem; width: min(34rem, calc(100% - 1.5rem)); }
                     .abl-map-search-row { display: flex; gap: 0.45rem; width: 100%; }
-                    .abl-map-search-input { background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(17, 24, 39, 0.18); border-radius: 0.4rem; color: #111827; flex: 1; font-size: 0.875rem; min-width: 0; padding: 0.5rem 0.65rem; }
+                    .abl-map-search-input { background: rgba(255, 255, 255, 0.95) !important; border: 1px solid rgba(17, 24, 39, 0.12); border-radius: 0.55rem; color: #111827 !important; flex: 1; font-size: 0.875rem; min-width: 0; padding: 0.5rem 0.65rem; }
                     .abl-map-search-input:focus { border-color: #f59e0b; outline: none; }
-                    .abl-map-search-submit { background: #f59e0b; border-radius: 0.4rem; color: #111827; cursor: pointer; font-size: 0.8125rem; font-weight: 700; padding: 0.5rem 0.7rem; white-space: nowrap; }
-                    .abl-map-search-submit:disabled { cursor: wait; opacity: 0.72; }
-                    .abl-map-search-results { background: rgba(17, 24, 39, 0.94); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 0.5rem; margin-top: 0.45rem; max-height: 13rem; overflow-y: auto; padding: 0.25rem; width: 100%; }
-                    .abl-map-search-result { border-radius: 0.35rem; color: #ffffff; cursor: pointer; display: block; font-size: 0.8125rem; line-height: 1.35; padding: 0.5rem 0.6rem; text-align: left; width: 100%; }
-                    .abl-map-search-result:hover { background: rgba(245, 158, 11, 0.2); }
-                    .abl-map-search-message { color: rgba(255, 255, 255, 0.82); font-size: 0.8125rem; margin-top: 0.45rem; padding: 0 0.2rem 0.1rem; }
+                    .abl-map-search-message { color: rgba(17, 24, 39, 0.72) !important; font-size: 0.8125rem; margin-top: 0.45rem; padding: 0 0.2rem 0.1rem; }
+                    @media (max-width: 64rem) {
+                        .abl-map-search { max-width: calc(100% - 1.5rem); }
+                        .abl-map-picker-overlay-top { top: 4.65rem; }
+                    }
+                    @media (max-width: 48rem) {
+                        .abl-map-picker { height: 24rem; min-height: 24rem; }
+                        .abl-map-picker-overlay { border-radius: 0.65rem; }
+                        .abl-map-picker-overlay-top { left: 0.75rem; right: auto; top: 4.65rem; }
+                        .abl-map-search { width: calc(100% - 1.5rem); }
+                    }
                 `;
                 document.head.appendChild(style);
             },
-            loadOpenLayersStylesheet() {
-                if (window.ablOpenLayersCssPromise) {
-                    return window.ablOpenLayersCssPromise;
+            loadGoogleMaps() {
+                if (window.google?.maps?.Map && window.google?.maps?.places?.Autocomplete) {
+                    return Promise.resolve();
                 }
 
-                window.ablOpenLayersCssPromise = new Promise((resolve) => {
+                if (window.ablGoogleMapsPromise) {
+                    return window.ablGoogleMapsPromise;
+                }
+
+                window.ablGoogleMapsPromise = new Promise((resolve, reject) => {
                     this.preconnectMapAssets();
 
-                    const existing = document.querySelector('link[data-abl-openlayers-css]');
+                    const callbackName = 'ablGoogleMapsReady';
+                    window[callbackName] = () => resolve();
 
-                    if (existing) {
-                        resolve();
-
-                        return;
-                    }
-
-                    const link = document.createElement('link');
-                    link.dataset.ablOpenlayersCss = 'true';
-                    link.rel = 'stylesheet';
-                    link.href = 'https://cdn.jsdelivr.net/npm/ol@10.9.0/ol.css';
-                    link.onload = resolve;
-                    link.onerror = resolve;
-                    document.head.appendChild(link);
+                    const script = document.createElement('script');
+                    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(this.googleMapsApiKey)}&v=weekly&language=id&region=ID&libraries=places&callback=${callbackName}`;
+                    script.async = true;
+                    script.defer = true;
+                    script.onerror = () => reject(new Error('Google Maps script failed'));
+                    document.head.appendChild(script);
                 });
 
-                return window.ablOpenLayersCssPromise;
+                return window.ablGoogleMapsPromise;
             },
             preconnectMapAssets() {
                 [
-                    'https://cdn.jsdelivr.net',
-                    'https://nominatim.openstreetmap.org',
-                    'https://tile.openstreetmap.org',
+                    'https://maps.googleapis.com',
+                    'https://maps.gstatic.com',
                 ].forEach((href) => {
                     if (document.querySelector(`link[rel=\'preconnect\'][href=\'${href}\']`)) {
                         return;
@@ -199,118 +192,87 @@
                     document.head.appendChild(link);
                 });
             },
-            loadOpenLayersScript() {
-                if (window.ol) {
-                    return Promise.resolve();
-                }
-
-                if (window.ablOpenLayersPromise) {
-                    return window.ablOpenLayersPromise;
-                }
-
-                window.ablOpenLayersPromise = new Promise((resolve, reject) => {
-                    const script = document.createElement('script');
-                    script.src = 'https://cdn.jsdelivr.net/npm/ol@10.9.0/dist/ol.js';
-                    script.onload = resolve;
-                    script.onerror = reject;
-                    document.head.appendChild(script);
-                });
-
-                return window.ablOpenLayersPromise;
-            },
-            setPoint(point) {
-                this.setPointFromLonLat([Number(point.lng), Number(point.lat)]);
-            },
-            setPointFromLonLat(point, updateMarker = true) {
-                const lng = Number(point[0]);
-                const lat = Number(point[1]);
-                const coordinate = ol.proj.fromLonLat([lng, lat]);
-
-                this.latitude = lat.toFixed(7);
-                this.longitude = lng.toFixed(7);
-
-                if (updateMarker) {
-                    this.markerFeature.getGeometry().setCoordinates(coordinate);
-                }
-
-                this.circleFeature.getGeometry().setCenter(coordinate);
-            },
-            async searchLocation() {
-                const query = this.searchQuery.trim();
-
-                if (query.length < 3 || this.searchingLocation) {
+            resizeMap() {
+                if (! this.map) {
                     return;
                 }
 
-                this.searchingLocation = true;
-                this.searchMessage = null;
-                this.searchResults = [];
+                const center = this.marker?.getPosition() ?? this.map.getCenter();
 
-                const params = new URLSearchParams({
-                    addressdetails: '1',
-                    format: 'jsonv2',
-                    limit: '6',
-                    q: query,
-                    'accept-language': 'id',
-                });
+                google.maps.event.trigger(this.map, 'resize');
 
-                try {
-                    const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
-                        headers: {
-                            Accept: 'application/json',
-                        },
-                    });
-
-                    if (! response.ok) {
-                        throw new Error('Search failed');
-                    }
-
-                    this.searchResults = await response.json();
-                    this.searchMessage = this.searchResults.length ? null : 'Lokasi tidak ditemukan.';
-                } catch (error) {
-                    this.searchMessage = 'Pencarian lokasi gagal.';
-                } finally {
-                    this.searchingLocation = false;
+                if (center) {
+                    this.map.setCenter(center);
                 }
             },
-            selectSearchResult(result) {
-                const lat = Number(result.lat);
-                const lng = Number(result.lon);
+            readLatLng(point) {
+                const lat = typeof point.lat === 'function' ? point.lat() : Number(point.lat);
+                const lng = typeof point.lng === 'function' ? point.lng() : Number(point.lng);
+
+                return { lat, lng };
+            },
+            setPoint(point) {
+                this.setPointFromLatLng(point);
+            },
+            setPointFromLatLng(point, updateMarker = true) {
+                const { lat, lng } = this.readLatLng(point);
 
                 if (! Number.isFinite(lat) || ! Number.isFinite(lng)) {
                     return;
                 }
 
-                this.searchQuery = result.display_name;
-                this.searchMessage = null;
-                this.searchResults = [];
-                this.setPointFromLonLat([lng, lat]);
+                const position = { lat, lng };
 
-                if (Array.isArray(result.boundingbox) && result.boundingbox.length === 4) {
-                    const extent = ol.proj.transformExtent(
-                        [
-                            Number(result.boundingbox[2]),
-                            Number(result.boundingbox[0]),
-                            Number(result.boundingbox[3]),
-                            Number(result.boundingbox[1]),
-                        ],
-                        'EPSG:4326',
-                        'EPSG:3857',
-                    );
+                this.latitude = lat.toFixed(7);
+                this.longitude = lng.toFixed(7);
 
-                    this.map.getView().fit(extent, {
-                        duration: 250,
-                        maxZoom: 18,
-                        padding: [80, 56, 56, 56],
-                    });
+                if (updateMarker) {
+                    this.marker?.setPosition(position);
+                }
+
+                this.circle?.setCenter(position);
+            },
+            initPlaceAutocomplete() {
+                if (! window.google?.maps?.places?.Autocomplete || ! this.$refs.searchInput) {
+                    this.searchMessage = 'Google Places belum tersedia.';
 
                     return;
                 }
 
-                this.map.getView().animate({
-                    center: ol.proj.fromLonLat([lng, lat]),
-                    duration: 250,
-                    zoom: 17,
+                this.autocomplete = new google.maps.places.Autocomplete(this.$refs.searchInput, {
+                    componentRestrictions: { country: 'id' },
+                    fields: ['formatted_address', 'geometry', 'name'],
+                });
+                this.autocomplete.bindTo('bounds', this.map);
+
+                this.autocomplete.addListener('place_changed', () => {
+                    const place = this.autocomplete.getPlace();
+                    const location = place.geometry?.location;
+
+                    if (! location) {
+                        this.searchMessage = 'Pilih lokasi dari saran Google Maps.';
+
+                        return;
+                    }
+
+                    this.searchQuery = place.formatted_address || place.name || this.$refs.searchInput.value;
+                    this.searchMessage = null;
+                    this.setPointFromLatLng(location);
+
+                    if (place.geometry?.viewport) {
+                        google.maps.event.addListenerOnce(this.map, 'idle', () => {
+                            if (this.map.getZoom() > 18) {
+                                this.map.setZoom(18);
+                            }
+                        });
+
+                        this.map.fitBounds(place.geometry.viewport, 56);
+
+                        return;
+                    }
+
+                    this.map.panTo(location);
+                    this.map.setZoom(17);
                 });
             },
             useCurrentLocation() {
@@ -354,11 +316,8 @@
                     };
 
                     this.setPoint(point);
-                    this.map.getView().animate({
-                        center: ol.proj.fromLonLat([point.lng, point.lat]),
-                        duration: 250,
-                        zoom: position.coords.accuracy <= 50 ? 18 : 16,
-                    });
+                    this.map.panTo(point);
+                    this.map.setZoom(position.coords.accuracy <= 50 ? 18 : 16);
                     hasAppliedPosition = true;
                 };
 
@@ -428,7 +387,16 @@
                 }
 
                 this.resizeObserver?.disconnect();
-                this.map?.setTarget(undefined);
+                this.marker?.setMap(null);
+                this.circle?.setMap(null);
+
+                if (this.autocomplete) {
+                    google.maps.event.clearInstanceListeners(this.autocomplete);
+                }
+
+                if (this.map) {
+                    google.maps.event.clearInstanceListeners(this.map);
+                }
             },
         }"
         x-init="initMap()"
@@ -446,37 +414,12 @@
             <div class="abl-map-picker-overlay abl-map-search">
                 <div class="abl-map-search-row">
                     <input
+                        x-ref="searchInput"
                         type="search"
                         x-model="searchQuery"
-                        x-on:keydown.enter.prevent="searchLocation()"
                         class="abl-map-search-input"
-                        placeholder="Cari lokasi"
+                        placeholder="Cari lokasi di Google Maps"
                     />
-
-                    <button
-                        type="button"
-                        x-on:click="searchLocation()"
-                        x-bind:disabled="searchingLocation"
-                        x-text="searchingLocation ? 'Mencari...' : 'Cari'"
-                        class="abl-map-search-submit"
-                    >
-                        Cari
-                    </button>
-                </div>
-
-                <div
-                    x-show="searchResults.length > 0"
-                    x-cloak
-                    class="abl-map-search-results"
-                >
-                    <template x-for="result in searchResults" x-bind:key="result.place_id">
-                        <button
-                            type="button"
-                            x-on:click="selectSearchResult(result)"
-                            class="abl-map-search-result"
-                            x-text="result.display_name"
-                        ></button>
-                    </template>
                 </div>
 
                 <div
