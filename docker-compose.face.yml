@@ -1,0 +1,7 @@
+services:
+  face-service:
+    build:
+      context: ./python-face-detection
+    ports:
+      - "5000:5000"
+    restart: unless-stopped

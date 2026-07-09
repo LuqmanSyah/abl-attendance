@@ -58,7 +58,7 @@ class EmployeeForm
                     ->image()
                     ->imageEditor()
                     ->maxSize(2048)
-                    ->helperText('Gunakan foto satu wajah yang jelas dan menghadap kamera.'),
+                    ->helperText('Gunakan foto satu wajah yang jelas. Klik Simpan setelah upload; service wajah harus aktif agar embedding tersimpan.'),
                 Select::make('division_id')
                     ->label('Divisi')
                     ->relationship('division', 'name')

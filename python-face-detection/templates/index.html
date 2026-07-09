@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Absensi Face Recognition</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="topbar">
+        <div>
+          <h1>Absensi Face Recognition</h1>
+          <p>Registrasi embedding wajah karyawan dan pencatatan absensi harian.</p>
+        </div>
+        <button class="icon-button" id="refreshButton" type="button" title="Muat ulang data">↻</button>
+      </section>
+
+      <section class="workspace">
+        <form class="panel" id="registerForm">
+          <input id="editingEmployeeId" name="employee_id" type="hidden">
+          <div class="panel-header">
+            <h2 id="employeeFormTitle">Registrasi</h2>
+            <span id="employeeFormMode">Tambah data</span>
+          </div>
+
+          <label>
+            NIP
+            <input name="employee_code" autocomplete="off" required>
+          </label>
+
+          <label>
+            Nama
+            <input name="name" autocomplete="name" required>
+          </label>
+
+          <label>
+            Foto profil
+            <input id="employeePhoto" name="photo" type="file" accept="image/*" required>
+          </label>
+
+          <div class="actions">
+            <button id="employeeSubmitButton" type="submit">Simpan wajah</button>
+            <button class="secondary" id="cancelEditButton" type="button" hidden>Batal edit</button>
+          </div>
+          <p class="status" id="registerStatus"></p>
+        </form>
+
+        <section class="panel camera-panel">
+          <div class="panel-header">
+            <h2>Absensi</h2>
+            <span>Setiap hari</span>
+          </div>
+
+          <div class="camera-frame">
+            <video id="camera" autoplay playsinline></video>
+            <canvas id="snapshot" hidden></canvas>
+          </div>
+
+          <div class="actions">
+            <button id="startCameraButton" type="button">Nyalakan kamera</button>
+            <button id="attendanceButton" type="button" disabled>Scan wajah</button>
+          </div>
+
+          <p class="status" id="attendanceStatus"></p>
+        </section>
+
+        <form class="panel" id="attendanceForm">
+          <input id="editingAttendanceId" name="attendance_id" type="hidden">
+          <div class="panel-header">
+            <h2 id="attendanceFormTitle">Data Absensi</h2>
+            <span id="attendanceFormMode">Tambah manual</span>
+          </div>
+
+          <label>
+            Karyawan
+            <select id="attendanceEmployee" name="employee_id" required></select>
+          </label>
+
+          <label>
+            Tanggal
+            <input id="attendanceDate" name="attendance_date" type="date" required>
+          </label>
+
+          <label>
+            Jam masuk
+            <input id="attendanceTime" name="check_in_time" type="time" required>
+          </label>
+
+          <label>
+            Jarak
+            <input id="attendanceDistance" name="distance" type="number" min="0" step="0.0001" value="0">
+          </label>
+
+          <div class="actions">
+            <button id="attendanceSubmitButton" type="submit">Simpan absensi</button>
+            <button class="secondary" id="cancelAttendanceEditButton" type="button" hidden>Batal edit</button>
+          </div>
+          <p class="status" id="attendanceFormStatus"></p>
+        </form>
+      </section>
+
+      <section class="data-grid">
+        <section>
+          <div class="table-header">
+            <h2>Karyawan Terdaftar</h2>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>NIP</th>
+                  <th>Nama</th>
+                  <th>Registrasi</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="employeeRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section>
+          <div class="table-header">
+            <h2>Absensi Terakhir</h2>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>NIP</th>
+                  <th>Nama</th>
+                  <th>Waktu</th>
+                  <th>Jarak</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="attendanceRows"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </main>
+  </body>
+</html>
