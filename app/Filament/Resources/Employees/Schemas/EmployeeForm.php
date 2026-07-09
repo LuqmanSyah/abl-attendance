@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Employees\Schemas;
 use App\Models\Employee;
 use App\Models\Position;
 use App\Models\User;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -50,6 +51,14 @@ class EmployeeForm
                     ->label('No. Telepon')
                     ->tel()
                     ->maxLength(255),
+                FileUpload::make('face_photo_path')
+                    ->label('Foto Wajah')
+                    ->disk('local')
+                    ->directory('employee-faces')
+                    ->image()
+                    ->imageEditor()
+                    ->maxSize(2048)
+                    ->helperText('Gunakan foto satu wajah yang jelas dan menghadap kamera.'),
                 Select::make('division_id')
                     ->label('Divisi')
                     ->relationship('division', 'name')

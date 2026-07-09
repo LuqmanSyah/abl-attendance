@@ -26,9 +26,12 @@
             default => 'gray',
         };
 
-        $officeLocationConfigured = is_numeric(config('attendance.office.latitude'))
-            && is_numeric(config('attendance.office.longitude'));
-        $canUseOfficeAttendance = $officeLocationConfigured && ! $isOnDuty;
+        $attendanceSettings = app(\App\Support\AttendanceSettings::class);
+        $officeLocationConfigured = $attendanceSettings->officeLocationConfigured();
+        $faceRecognitionEnabled = (bool) config('attendance.face.enabled', true);
+        $hasFaceEmbedding = filled(Filament\Facades\Filament::auth()->user()?->employee?->face_embedding);
+        $hasRequiredFaceData = ! $faceRecognitionEnabled || $hasFaceEmbedding;
+        $canUseOfficeAttendance = $officeLocationConfigured && ! $isOnDuty && $hasRequiredFaceData;
 
         $formatLocationStatus = function (?string $status) use ($officeLocationConfigured): string {
             return match ($status) {
@@ -85,6 +88,26 @@
             display: flex;
             flex-wrap: wrap;
             gap: .75rem;
+        }
+
+        .attendance-camera {
+            display: grid;
+            gap: .75rem;
+        }
+
+        .attendance-camera-frame {
+            aspect-ratio: 16 / 9;
+            overflow: hidden;
+            border-radius: .625rem;
+            background: color-mix(in srgb, currentColor 10%, transparent);
+        }
+
+        .attendance-camera-frame video {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
         }
 
         .attendance-alert {
@@ -188,6 +211,13 @@
                 }
 
                 this.loadingAction = action;
+                const faceImage = {{ $faceRecognitionEnabled ? 'true' : 'false' }} ? this.captureFace() : null;
+
+                if ({{ $faceRecognitionEnabled ? 'true' : 'false' }} && ! faceImage) {
+                    this.loadingAction = null;
+                    alert('Kamera belum aktif. Nyalakan kamera dan posisikan wajah terlebih dahulu.');
+                    return;
+                }
 
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
@@ -195,6 +225,7 @@
                             position.coords.latitude,
                             position.coords.longitude,
                             position.coords.accuracy,
+                            faceImage,
                         ).then(() => {
                             this.loadingAction = null;
                         });
@@ -209,6 +240,37 @@
                         timeout: 15000,
                     },
                 );
+            },
+            cameraStream: null,
+            cameraReady: false,
+            async startCamera() {
+                if (! navigator.mediaDevices?.getUserMedia) {
+                    alert('Browser tidak mendukung kamera.');
+                    return;
+                }
+
+                try {
+                    this.cameraStream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: 'user', width: 960, height: 720 },
+                        audio: false,
+                    });
+                    this.$refs.camera.srcObject = this.cameraStream;
+                    this.cameraReady = true;
+                } catch (error) {
+                    alert('Kamera tidak bisa dibuka. Periksa izin browser.');
+                }
+            },
+            captureFace() {
+                if (! this.cameraReady || ! this.$refs.camera.videoWidth) {
+                    return null;
+                }
+
+                const canvas = this.$refs.snapshot;
+                canvas.width = this.$refs.camera.videoWidth;
+                canvas.height = this.$refs.camera.videoHeight;
+                canvas.getContext('2d').drawImage(this.$refs.camera, 0, 0);
+
+                return canvas.toDataURL('image/jpeg', 0.9);
             },
         }"
         class="attendance-page"
@@ -226,6 +288,10 @@
                 @elseif (! $officeLocationConfigured)
                     <div class="attendance-alert">
                         Koordinat kantor belum diatur. Isi ATTENDANCE_OFFICE_LATITUDE dan ATTENDANCE_OFFICE_LONGITUDE agar lokasi dan jarak absensi bisa dihitung.
+                    </div>
+                @elseif ($faceRecognitionEnabled && ! $hasFaceEmbedding)
+                    <div class="attendance-alert">
+                        Foto wajah Anda belum terdaftar. Hubungi admin untuk mendaftarkan foto wajah sebelum melakukan absensi kantor.
                     </div>
                 @endif
 
@@ -272,26 +338,47 @@
                     </div>
                 </div>
 
+                @if ($faceRecognitionEnabled)
+                    <div class="attendance-camera">
+                        <div class="attendance-camera-frame">
+                            <video x-ref="camera" autoplay playsinline muted></video>
+                            <canvas x-ref="snapshot" hidden></canvas>
+                        </div>
+
+                        <div class="attendance-actions">
+                            <x-filament::button
+                                color="gray"
+                                type="button"
+                                x-on:click="startCamera"
+                                x-bind:disabled="cameraReady || {{ $hasFaceEmbedding ? 'false' : 'true' }}"
+                            >
+                                <span x-show="! cameraReady">Nyalakan Kamera</span>
+                                <span x-cloak x-show="cameraReady">Kamera Aktif</span>
+                            </x-filament::button>
+                        </div>
+                    </div>
+                @endif
+
                 <div class="attendance-actions">
                     <x-filament::button
                         :disabled="! $canUseOfficeAttendance || filled($record?->check_in_at)"
                         :icon="\Filament\Support\Icons\Heroicon::ArrowRightOnRectangle"
-                        x-bind:disabled="loadingAction !== null || {{ $canUseOfficeAttendance ? 'false' : 'true' }}"
+                        x-bind:disabled="loadingAction !== null || {{ $faceRecognitionEnabled ? '! cameraReady ||' : '' }} {{ $canUseOfficeAttendance ? 'false' : 'true' }}"
                         x-on:click="locate('checkIn')"
                     >
                         <span x-show="loadingAction !== 'checkIn'">Absen Masuk</span>
-                        <span x-cloak x-show="loadingAction === 'checkIn'">Mengambil GPS...</span>
+                        <span x-cloak x-show="loadingAction === 'checkIn'">Memverifikasi...</span>
                     </x-filament::button>
 
                     <x-filament::button
                         color="gray"
                         :disabled="! $canUseOfficeAttendance || blank($record?->check_in_at) || filled($record?->check_out_at)"
                         :icon="\Filament\Support\Icons\Heroicon::ArrowLeftOnRectangle"
-                        x-bind:disabled="loadingAction !== null || {{ $canUseOfficeAttendance ? 'false' : 'true' }}"
+                        x-bind:disabled="loadingAction !== null || {{ $faceRecognitionEnabled ? '! cameraReady ||' : '' }} {{ $canUseOfficeAttendance ? 'false' : 'true' }}"
                         x-on:click="locate('checkOut')"
                     >
                         <span x-show="loadingAction !== 'checkOut'">Absen Pulang</span>
-                        <span x-cloak x-show="loadingAction === 'checkOut'">Mengambil GPS...</span>
+                        <span x-cloak x-show="loadingAction === 'checkOut'">Memverifikasi...</span>
                     </x-filament::button>
                 </div>
 

@@ -78,4 +78,15 @@ class ExampleTest extends TestCase
         $this->actingAs($employee)->get('/admin')->assertForbidden();
         $this->actingAs($admin)->get('/pegawai')->assertForbidden();
     }
+
+    public function test_admin_can_open_attendance_settings_page(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin)
+            ->get('/admin/pengaturan-absensi')
+            ->assertOk()
+            ->assertSee('Pengaturan Absensi')
+            ->assertSee('Latitude Kantor');
+    }
 }

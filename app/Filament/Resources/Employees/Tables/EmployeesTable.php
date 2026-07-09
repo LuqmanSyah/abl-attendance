@@ -38,6 +38,12 @@ class EmployeesTable
                 TextColumn::make('superior.name')
                     ->label('Atasan Langsung')
                     ->toggleable(),
+                TextColumn::make('face_registered_at')
+                    ->label('Wajah')
+                    ->badge()
+                    ->formatStateUsing(fn (mixed $state): string => filled($state) ? 'Terdaftar' : 'Belum terdaftar')
+                    ->color(fn (mixed $state): string => filled($state) ? 'success' : 'warning')
+                    ->sortable(),
                 TextColumn::make('status')
                     ->label('Status')
                     ->badge()

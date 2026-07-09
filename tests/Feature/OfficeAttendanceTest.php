@@ -2,21 +2,26 @@
 
 namespace Tests\Feature;
 
+use App\Models\AttendanceSetting;
 use App\Models\Division;
 use App\Models\DutyAssignment;
 use App\Models\Employee;
 use App\Models\Position;
 use App\Models\User;
+use App\Support\FaceRecognitionService;
 use App\Support\OfficeAttendanceManager;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class OfficeAttendanceTest extends TestCase
 {
     use RefreshDatabase;
+
+    private const FACE_IMAGE = 'data:image/jpeg;base64,ZmFrZQ==';
 
     public function test_employee_can_check_in_for_office_attendance(): void
     {
@@ -29,13 +34,16 @@ class OfficeAttendanceTest extends TestCase
             -6.2005000,
             106.8166667,
             10.5,
-            Carbon::parse('2026-07-02 08:00:00'),
+            at: Carbon::parse('2026-07-02 08:00:00'),
+            faceImage: self::FACE_IMAGE,
         );
 
         $this->assertSame('office', $record->attendance_type);
         $this->assertSame('approved', $record->verification_status);
         $this->assertSame('present', $record->status);
         $this->assertSame('inside_radius', $record->check_in_location_status);
+        $this->assertSame(0.25, $record->check_in_face_distance);
+        $this->assertNotNull($record->check_in_face_verified_at);
         $this->assertSame('2026-07-02', $record->attendance_date->toDateString());
     }
 
@@ -50,7 +58,8 @@ class OfficeAttendanceTest extends TestCase
             -6.2005000,
             106.8166667,
             null,
-            Carbon::parse('2026-07-02 08:00:00'),
+            at: Carbon::parse('2026-07-02 08:00:00'),
+            faceImage: self::FACE_IMAGE,
         );
 
         $record = app(OfficeAttendanceManager::class)->checkOut(
@@ -58,11 +67,14 @@ class OfficeAttendanceTest extends TestCase
             -6.2004000,
             106.8166667,
             null,
-            Carbon::parse('2026-07-02 17:00:00'),
+            at: Carbon::parse('2026-07-02 17:00:00'),
+            faceImage: self::FACE_IMAGE,
         );
 
         $this->assertNotNull($record->check_out_at);
         $this->assertSame('inside_radius', $record->check_out_location_status);
+        $this->assertSame(0.25, $record->check_out_face_distance);
+        $this->assertNotNull($record->check_out_face_verified_at);
     }
 
     public function test_employee_cannot_check_out_before_office_check_in(): void
@@ -89,7 +101,8 @@ class OfficeAttendanceTest extends TestCase
             -6.2005000,
             106.8166667,
             null,
-            Carbon::parse('2026-07-02 08:00:00'),
+            at: Carbon::parse('2026-07-02 08:00:00'),
+            faceImage: self::FACE_IMAGE,
         );
 
         $this->expectException(ValidationException::class);
@@ -103,6 +116,64 @@ class OfficeAttendanceTest extends TestCase
         );
     }
 
+    public function test_employee_cannot_check_in_without_registered_face(): void
+    {
+        $this->configureOfficeLocation();
+
+        $employee = $this->createEmployee(faceEmbedding: null);
+
+        $this->expectException(ValidationException::class);
+
+        app(OfficeAttendanceManager::class)->checkIn(
+            $employee,
+            -6.2005000,
+            106.8166667,
+            null,
+            at: Carbon::parse('2026-07-02 08:00:00'),
+            faceImage: self::FACE_IMAGE,
+        );
+    }
+
+    public function test_employee_cannot_check_in_outside_office_radius(): void
+    {
+        $this->configureOfficeLocation();
+
+        $this->expectException(ValidationException::class);
+
+        app(OfficeAttendanceManager::class)->checkIn(
+            $this->createEmployee(),
+            -6.2500000,
+            106.8166667,
+            null,
+            at: Carbon::parse('2026-07-02 08:00:00'),
+            faceImage: self::FACE_IMAGE,
+        );
+    }
+
+    public function test_employee_cannot_check_in_when_face_does_not_match(): void
+    {
+        $this->configureOfficeLocation();
+        $this->mock(FaceRecognitionService::class)
+            ->shouldReceive('verify')
+            ->once()
+            ->andReturn([
+                'matched' => false,
+                'distance' => 0.71,
+                'tolerance' => 0.5,
+            ]);
+
+        $this->expectException(ValidationException::class);
+
+        app(OfficeAttendanceManager::class)->checkIn(
+            $this->createEmployee(),
+            -6.2005000,
+            106.8166667,
+            null,
+            at: Carbon::parse('2026-07-02 08:00:00'),
+            faceImage: self::FACE_IMAGE,
+        );
+    }
+
     public function test_office_attendance_page_renders_for_employee(): void
     {
         $employee = $this->createEmployee();
@@ -110,6 +181,21 @@ class OfficeAttendanceTest extends TestCase
         $this->actingAs($employee->user)
             ->get('/pegawai/absensi')
             ->assertOk();
+    }
+
+    public function test_office_attendance_page_does_not_require_face_when_face_recognition_is_disabled(): void
+    {
+        $this->configureOfficeLocation();
+        Config::set('attendance.face.enabled', false);
+
+        $employee = $this->createEmployee(faceEmbedding: null);
+
+        $this->actingAs($employee->user)
+            ->get('/pegawai/absensi')
+            ->assertOk()
+            ->assertDontSee('Foto wajah Anda belum terdaftar')
+            ->assertDontSee('Nyalakan Kamera')
+            ->assertSee('Absen Masuk');
     }
 
     public function test_employee_cannot_check_in_when_office_location_is_not_configured(): void
@@ -126,6 +212,31 @@ class OfficeAttendanceTest extends TestCase
             null,
             Carbon::parse('2026-07-02 08:00:00'),
         );
+    }
+
+    public function test_office_attendance_uses_database_office_location_settings(): void
+    {
+        Config::set('attendance.office.latitude', null);
+        Config::set('attendance.office.longitude', null);
+        Config::set('attendance.face.enabled', true);
+        $this->fakeFaceVerification();
+
+        AttendanceSetting::create([
+            'office_latitude' => -6.2000000,
+            'office_longitude' => 106.8166667,
+            'office_radius_meters' => 100,
+        ]);
+
+        $record = app(OfficeAttendanceManager::class)->checkIn(
+            $this->createEmployee(),
+            -6.2005000,
+            106.8166667,
+            null,
+            at: Carbon::parse('2026-07-02 08:00:00'),
+            faceImage: self::FACE_IMAGE,
+        );
+
+        $this->assertSame('inside_radius', $record->check_in_location_status);
     }
 
     public function test_office_attendance_page_points_employee_to_duty_attendance_when_on_active_assignment(): void
@@ -198,6 +309,21 @@ class OfficeAttendanceTest extends TestCase
         Config::set('attendance.office.latitude', -6.2000000);
         Config::set('attendance.office.longitude', 106.8166667);
         Config::set('attendance.office.radius_meters', 100);
+        Config::set('attendance.face.enabled', true);
+
+        $this->fakeFaceVerification();
+    }
+
+    protected function fakeFaceVerification(bool $matched = true, float $distance = 0.25): void
+    {
+        Http::fake([
+            '*' => Http::response([
+                'ok' => true,
+                'matched' => $matched,
+                'distance' => $distance,
+                'tolerance' => 0.5,
+            ]),
+        ]);
     }
 
     protected function createSupervisor(): Employee
@@ -224,7 +350,7 @@ class OfficeAttendanceTest extends TestCase
         ]);
     }
 
-    protected function createEmployee(): Employee
+    protected function createEmployee(?array $faceEmbedding = [0.1, 0.2, 0.3]): Employee
     {
         $division = Division::firstOrCreate(['name' => 'Operasional']);
         $position = Position::firstOrCreate(
@@ -244,6 +370,8 @@ class OfficeAttendanceTest extends TestCase
             'position_id' => $position->id,
             'employee_code' => fake()->unique()->bothify('EMP###'),
             'name' => $user->name,
+            'face_embedding' => $faceEmbedding,
+            'face_registered_at' => filled($faceEmbedding) ? now() : null,
             'status' => 'active',
         ]);
     }

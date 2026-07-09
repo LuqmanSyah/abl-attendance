@@ -21,6 +21,9 @@ return new class extends Migration
             $table->string('name');
             $table->string('phone')->nullable();
             $table->text('address')->nullable();
+            $table->json('face_embedding')->nullable();
+            $table->string('face_photo_path')->nullable();
+            $table->timestamp('face_registered_at')->nullable();
             $table->string('status')->default('active')->index();
             $table->timestamps();
         });

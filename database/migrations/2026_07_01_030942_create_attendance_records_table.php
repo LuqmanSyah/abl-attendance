@@ -23,12 +23,16 @@ return new class extends Migration
             $table->decimal('check_in_accuracy', 8, 2)->nullable();
             $table->unsignedInteger('check_in_distance_meters')->nullable();
             $table->string('check_in_location_status')->nullable();
+            $table->decimal('check_in_face_distance', 8, 6)->nullable();
+            $table->timestamp('check_in_face_verified_at')->nullable();
             $table->timestamp('check_out_at')->nullable();
             $table->decimal('check_out_latitude', 10, 7)->nullable();
             $table->decimal('check_out_longitude', 10, 7)->nullable();
             $table->decimal('check_out_accuracy', 8, 2)->nullable();
             $table->unsignedInteger('check_out_distance_meters')->nullable();
             $table->string('check_out_location_status')->nullable();
+            $table->decimal('check_out_face_distance', 8, 6)->nullable();
+            $table->timestamp('check_out_face_verified_at')->nullable();
             $table->string('status')->default('present')->index();
             $table->string('verification_status')->default('approved')->index();
             $table->foreignId('verified_by')->nullable()->constrained('users')->nullOnDelete();

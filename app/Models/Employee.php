@@ -18,8 +18,19 @@ class Employee extends Model
         'name',
         'phone',
         'address',
+        'face_embedding',
+        'face_photo_path',
+        'face_registered_at',
         'status',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'face_embedding' => 'array',
+            'face_registered_at' => 'datetime',
+        ];
+    }
 
     public function user(): BelongsTo
     {

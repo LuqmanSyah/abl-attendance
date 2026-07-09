@@ -5,9 +5,11 @@ namespace App\Filament\Resources\Employees\Pages;
 use App\Filament\Resources\Employees\EmployeeResource;
 use App\Models\Position;
 use App\Models\User;
+use App\Support\FaceRecognitionService;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class EditEmployee extends EditRecord
 {
@@ -58,6 +60,8 @@ class EditEmployee extends EditRecord
             $data['superior_id'] = null;
         }
 
+        $data = $this->processFacePhoto($data);
+
         return $data;
     }
 
@@ -107,5 +111,31 @@ class EditEmployee extends EditRecord
         return (bool) Position::query()
             ->whereKey($positionId)
             ->value('requires_superior');
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function processFacePhoto(array $data): array
+    {
+        $facePhotoPath = $data['face_photo_path'] ?? null;
+
+        if (blank($facePhotoPath)) {
+            $data['face_embedding'] = null;
+            $data['face_registered_at'] = null;
+
+            return $data;
+        }
+
+        if ($facePhotoPath === $this->getRecord()->face_photo_path) {
+            return $data;
+        }
+
+        $data['face_embedding'] = app(FaceRecognitionService::class)
+            ->createEmbeddingFromFile(Storage::disk('local')->path($facePhotoPath));
+        $data['face_registered_at'] = now();
+
+        return $data;
     }
 }

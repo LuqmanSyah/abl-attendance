@@ -59,14 +59,14 @@ class OfficeAttendance extends Page
             ->first();
     }
 
-    public function checkIn(float $latitude, float $longitude, ?float $accuracy = null): void
+    public function checkIn(float $latitude, float $longitude, ?float $accuracy = null, ?string $faceImage = null): void
     {
-        $this->recordAttendance($latitude, $longitude, $accuracy, 'checkIn');
+        $this->recordAttendance($latitude, $longitude, $accuracy, 'checkIn', $faceImage);
     }
 
-    public function checkOut(float $latitude, float $longitude, ?float $accuracy = null): void
+    public function checkOut(float $latitude, float $longitude, ?float $accuracy = null, ?string $faceImage = null): void
     {
-        $this->recordAttendance($latitude, $longitude, $accuracy, 'checkOut');
+        $this->recordAttendance($latitude, $longitude, $accuracy, 'checkOut', $faceImage);
     }
 
     protected function recordAttendance(
@@ -74,6 +74,7 @@ class OfficeAttendance extends Page
         float $longitude,
         ?float $accuracy,
         string $method,
+        ?string $faceImage,
     ): void {
         $employee = Filament::auth()->user()?->employee;
 
@@ -92,6 +93,7 @@ class OfficeAttendance extends Page
                 $latitude,
                 $longitude,
                 $accuracy,
+                faceImage: $faceImage,
             );
 
             Notification::make()

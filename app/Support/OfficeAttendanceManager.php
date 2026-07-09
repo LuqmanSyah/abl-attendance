@@ -16,6 +16,7 @@ class OfficeAttendanceManager
         float $longitude,
         ?float $accuracy = null,
         ?CarbonInterface $at = null,
+        ?string $faceImage = null,
     ): AttendanceRecord {
         $at ??= now();
         $this->ensureCoordinatesAreValid($latitude, $longitude);
@@ -44,6 +45,9 @@ class OfficeAttendanceManager
         }
 
         [$distanceMeters, $locationStatus] = $this->resolveOfficeLocation($latitude, $longitude);
+        $this->ensureInsideOfficeRadius($locationStatus);
+
+        $faceVerification = $this->verifyFace($employee, $faceImage);
 
         $record->fill([
             'attendance_type' => 'office',
@@ -54,6 +58,8 @@ class OfficeAttendanceManager
             'check_in_accuracy' => $accuracy,
             'check_in_distance_meters' => $distanceMeters,
             'check_in_location_status' => $locationStatus,
+            'check_in_face_distance' => $faceVerification['distance'],
+            'check_in_face_verified_at' => $at,
             'status' => 'present',
             'verification_status' => 'approved',
         ]);
@@ -69,6 +75,7 @@ class OfficeAttendanceManager
         float $longitude,
         ?float $accuracy = null,
         ?CarbonInterface $at = null,
+        ?string $faceImage = null,
     ): AttendanceRecord {
         $at ??= now();
         $this->ensureCoordinatesAreValid($latitude, $longitude);
@@ -99,6 +106,9 @@ class OfficeAttendanceManager
         }
 
         [$distanceMeters, $locationStatus] = $this->resolveOfficeLocation($latitude, $longitude);
+        $this->ensureInsideOfficeRadius($locationStatus);
+
+        $faceVerification = $this->verifyFace($employee, $faceImage);
 
         $record->fill([
             'check_out_at' => $at,
@@ -107,6 +117,8 @@ class OfficeAttendanceManager
             'check_out_accuracy' => $accuracy,
             'check_out_distance_meters' => $distanceMeters,
             'check_out_location_status' => $locationStatus,
+            'check_out_face_distance' => $faceVerification['distance'],
+            'check_out_face_verified_at' => $at,
             'verification_status' => 'approved',
         ]);
 
@@ -120,9 +132,10 @@ class OfficeAttendanceManager
      */
     protected function resolveOfficeLocation(float $latitude, float $longitude): array
     {
-        $officeLatitude = config('attendance.office.latitude');
-        $officeLongitude = config('attendance.office.longitude');
-        $radiusMeters = (int) config('attendance.office.radius_meters', 100);
+        $settings = app(AttendanceSettings::class);
+        $officeLatitude = $settings->officeLatitude();
+        $officeLongitude = $settings->officeLongitude();
+        $radiusMeters = $settings->officeRadiusMeters();
 
         if (! is_numeric($officeLatitude) || ! is_numeric($officeLongitude)) {
             throw ValidationException::withMessages([
@@ -170,5 +183,46 @@ class OfficeAttendanceManager
                 'longitude' => 'Longitude harus berada di antara -180 dan 180.',
             ]);
         }
+    }
+
+    protected function ensureInsideOfficeRadius(?string $locationStatus): void
+    {
+        if ($locationStatus !== 'inside_radius') {
+            throw ValidationException::withMessages([
+                'location' => 'Lokasi absensi berada di luar radius kantor.',
+            ]);
+        }
+    }
+
+    /**
+     * @return array{distance: float}
+     */
+    protected function verifyFace(Employee $employee, ?string $faceImage): array
+    {
+        if (! config('attendance.face.enabled', true)) {
+            return ['distance' => 0.0];
+        }
+
+        if (blank($employee->face_embedding)) {
+            throw ValidationException::withMessages([
+                'face' => 'Foto wajah pegawai belum terdaftar. Hubungi admin.',
+            ]);
+        }
+
+        if (blank($faceImage)) {
+            throw ValidationException::withMessages([
+                'face' => 'Scan wajah wajib dilakukan sebelum absensi.',
+            ]);
+        }
+
+        $verification = app(FaceRecognitionService::class)->verify($employee->face_embedding, $faceImage);
+
+        if (! $verification['matched']) {
+            throw ValidationException::withMessages([
+                'face' => "Wajah tidak cocok dengan data pegawai. Jarak: {$verification['distance']}.",
+            ]);
+        }
+
+        return ['distance' => $verification['distance']];
     }
 }

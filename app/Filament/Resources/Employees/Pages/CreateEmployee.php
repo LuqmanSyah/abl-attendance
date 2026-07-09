@@ -5,8 +5,10 @@ namespace App\Filament\Resources\Employees\Pages;
 use App\Filament\Resources\Employees\EmployeeResource;
 use App\Models\Position;
 use App\Models\User;
+use App\Support\FaceRecognitionService;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class CreateEmployee extends CreateRecord
 {
@@ -33,6 +35,8 @@ class CreateEmployee extends CreateRecord
         if (! $this->positionRequiresSuperior($data['position_id'] ?? null)) {
             $data['superior_id'] = null;
         }
+
+        $data = $this->processFacePhoto($data);
 
         return $data;
     }
@@ -72,5 +76,22 @@ class CreateEmployee extends CreateRecord
         return (bool) Position::query()
             ->whereKey($positionId)
             ->value('requires_superior');
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function processFacePhoto(array $data): array
+    {
+        if (blank($data['face_photo_path'] ?? null)) {
+            return $data;
+        }
+
+        $data['face_embedding'] = app(FaceRecognitionService::class)
+            ->createEmbeddingFromFile(Storage::disk('local')->path($data['face_photo_path']));
+        $data['face_registered_at'] = now();
+
+        return $data;
     }
 }
