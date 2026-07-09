@@ -45,10 +45,14 @@ class AttendanceRecordForm
                 TextInput::make('check_in_latitude')
                     ->label('Latitude Masuk')
                     ->numeric()
+                    ->minValue(-90)
+                    ->maxValue(90)
                     ->step('0.0000001'),
                 TextInput::make('check_in_longitude')
                     ->label('Longitude Masuk')
                     ->numeric()
+                    ->minValue(-180)
+                    ->maxValue(180)
                     ->step('0.0000001'),
                 TextInput::make('check_in_accuracy')
                     ->label('Akurasi Masuk (meter)')
@@ -69,10 +73,14 @@ class AttendanceRecordForm
                 TextInput::make('check_out_latitude')
                     ->label('Latitude Pulang')
                     ->numeric()
+                    ->minValue(-90)
+                    ->maxValue(90)
                     ->step('0.0000001'),
                 TextInput::make('check_out_longitude')
                     ->label('Longitude Pulang')
                     ->numeric()
+                    ->minValue(-180)
+                    ->maxValue(180)
                     ->step('0.0000001'),
                 TextInput::make('check_out_accuracy')
                     ->label('Akurasi Pulang (meter)')

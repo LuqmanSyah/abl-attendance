@@ -55,11 +55,15 @@ class DutyAssignmentForm
                 TextInput::make('latitude')
                     ->label('Latitude')
                     ->numeric()
+                    ->minValue(-90)
+                    ->maxValue(90)
                     ->step('0.0000001')
                     ->required(),
                 TextInput::make('longitude')
                     ->label('Longitude')
                     ->numeric()
+                    ->minValue(-180)
+                    ->maxValue(180)
                     ->step('0.0000001')
                     ->required(),
                 TextInput::make('radius_meters')
@@ -77,6 +81,7 @@ class DutyAssignmentForm
                     ->label('Selesai Dinas')
                     ->seconds(false)
                     ->native(false)
+                    ->rules(['after:starts_at'])
                     ->required(),
                 Select::make('status')
                     ->label('Status')

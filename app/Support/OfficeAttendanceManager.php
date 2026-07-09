@@ -18,6 +18,7 @@ class OfficeAttendanceManager
         ?CarbonInterface $at = null,
     ): AttendanceRecord {
         $at ??= now();
+        $this->ensureCoordinatesAreValid($latitude, $longitude);
         $this->ensureEmployeeIsNotOnActiveDutyAssignment($employee, $at);
 
         $record = AttendanceRecord::query()
@@ -70,6 +71,7 @@ class OfficeAttendanceManager
         ?CarbonInterface $at = null,
     ): AttendanceRecord {
         $at ??= now();
+        $this->ensureCoordinatesAreValid($latitude, $longitude);
         $this->ensureEmployeeIsNotOnActiveDutyAssignment($employee, $at);
 
         $record = AttendanceRecord::query()
@@ -151,6 +153,21 @@ class OfficeAttendanceManager
         if ($hasActiveDutyAssignment) {
             throw ValidationException::withMessages([
                 'attendance' => 'Pegawai sedang memiliki penugasan dinas aktif. Gunakan Absensi Dinas.',
+            ]);
+        }
+    }
+
+    protected function ensureCoordinatesAreValid(float $latitude, float $longitude): void
+    {
+        if ($latitude < -90 || $latitude > 90) {
+            throw ValidationException::withMessages([
+                'latitude' => 'Latitude harus berada di antara -90 dan 90.',
+            ]);
+        }
+
+        if ($longitude < -180 || $longitude > 180) {
+            throw ValidationException::withMessages([
+                'longitude' => 'Longitude harus berada di antara -180 dan 180.',
             ]);
         }
     }

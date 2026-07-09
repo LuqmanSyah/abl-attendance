@@ -2,15 +2,18 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Resources\DutyAssignments\Pages\CreateDutyAssignment;
 use App\Models\Division;
 use App\Models\DutyAssignment;
 use App\Models\Employee;
 use App\Models\Position;
 use App\Models\User;
+use App\Support\AttendanceRecordDataNormalizer;
 use App\Support\DutyAttendanceManager;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
+use ReflectionMethod;
 use Tests\TestCase;
 
 class DutyAttendanceTest extends TestCase
@@ -105,6 +108,49 @@ class DutyAttendanceTest extends TestCase
         );
     }
 
+    public function test_employee_cannot_check_out_before_duty_check_in_time(): void
+    {
+        [$supervisor, $employee] = $this->createSupervisorAndEmployee();
+        $assignment = $this->createAssignment($employee, $supervisor);
+
+        app(DutyAttendanceManager::class)->checkIn(
+            $employee,
+            $assignment,
+            -6.2005000,
+            106.8166667,
+            null,
+            Carbon::parse('2026-07-02 10:00:00'),
+        );
+
+        $this->expectException(ValidationException::class);
+
+        app(DutyAttendanceManager::class)->checkOut(
+            $employee,
+            $assignment,
+            -6.2005000,
+            106.8166667,
+            null,
+            Carbon::parse('2026-07-02 09:00:00'),
+        );
+    }
+
+    public function test_duty_attendance_rejects_invalid_coordinates(): void
+    {
+        [$supervisor, $employee] = $this->createSupervisorAndEmployee();
+        $assignment = $this->createAssignment($employee, $supervisor);
+
+        $this->expectException(ValidationException::class);
+
+        app(DutyAttendanceManager::class)->checkIn(
+            $employee,
+            $assignment,
+            -91,
+            106.8166667,
+            null,
+            Carbon::parse('2026-07-02 09:00:00'),
+        );
+    }
+
     public function test_supervisor_can_only_verify_subordinate_attendance(): void
     {
         [$supervisor, $employee] = $this->createSupervisorAndEmployee();
@@ -134,6 +180,64 @@ class DutyAttendanceTest extends TestCase
         $this->expectException(ValidationException::class);
 
         app(DutyAttendanceManager::class)->verify($record, $otherSupervisor, 'approved');
+    }
+
+    public function test_admin_attendance_record_normalizer_requires_matching_duty_assignment_employee(): void
+    {
+        [$supervisor, $employee] = $this->createSupervisorAndEmployee();
+        $otherEmployee = $this->createEmployee('EMP999', 'Other Employee', 'other.employee@example.com', $supervisor);
+        $assignment = $this->createAssignment($employee, $supervisor);
+
+        $this->expectException(ValidationException::class);
+
+        app(AttendanceRecordDataNormalizer::class)->normalize([
+            'employee_id' => $otherEmployee->id,
+            'attendance_date' => '2026-07-02',
+            'attendance_type' => 'duty',
+            'duty_assignment_id' => $assignment->id,
+        ]);
+    }
+
+    public function test_admin_attendance_record_normalizer_fills_duty_location_status(): void
+    {
+        [$supervisor, $employee] = $this->createSupervisorAndEmployee();
+        $assignment = $this->createAssignment($employee, $supervisor);
+
+        $data = app(AttendanceRecordDataNormalizer::class)->normalize([
+            'employee_id' => $employee->id,
+            'attendance_date' => '2026-07-02',
+            'attendance_type' => 'duty',
+            'duty_assignment_id' => $assignment->id,
+            'check_in_latitude' => -6.2005000,
+            'check_in_longitude' => 106.8166667,
+        ]);
+
+        $this->assertSame('inside_radius', $data['check_in_location_status']);
+        $this->assertSame(56, $data['check_in_distance_meters']);
+    }
+
+    public function test_admin_duty_assignment_requires_employee_supervisor_match(): void
+    {
+        [$supervisor, $employee] = $this->createSupervisorAndEmployee();
+        [$otherSupervisor] = $this->createSupervisorAndEmployee('SPV999', 'Other Supervisor', 'other.supervisor@example.com', 'EMP998', 'Other Staff', 'other.staff@example.com');
+
+        $page = new CreateDutyAssignment;
+        $method = new ReflectionMethod($page, 'mutateFormDataBeforeCreate');
+
+        $this->expectException(ValidationException::class);
+
+        $method->invoke($page, [
+            'employee_id' => $employee->id,
+            'supervisor_id' => $otherSupervisor->id,
+            'title' => 'Survey Lokasi',
+            'location_name' => 'Kantor Klien',
+            'latitude' => -6.2000000,
+            'longitude' => 106.8166667,
+            'radius_meters' => 100,
+            'starts_at' => '2026-07-02 08:00:00',
+            'ends_at' => '2026-07-02 17:00:00',
+            'status' => 'active',
+        ]);
     }
 
     public function test_duty_attendance_panel_pages_render(): void

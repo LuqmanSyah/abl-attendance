@@ -2,14 +2,18 @@
 
 namespace App\Filament\Supervisor\Resources\DutyAssignments\Pages;
 
+use App\Filament\Concerns\NotifiesValidationFailures;
 use App\Filament\Supervisor\Resources\DutyAssignments\DutyAssignmentResource;
 use App\Models\Employee;
 use Filament\Facades\Filament;
 use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
 class CreateDutyAssignment extends CreateRecord
 {
+    use NotifiesValidationFailures;
+
     protected static string $resource = DutyAssignmentResource::class;
 
     /**
@@ -18,25 +22,43 @@ class CreateDutyAssignment extends CreateRecord
      */
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        $supervisor = Filament::auth()->user()?->employee;
+        try {
+            $supervisor = Filament::auth()->user()?->employee;
 
-        if (! $supervisor) {
-            throw ValidationException::withMessages([
-                'supervisor_id' => 'Akun atasan belum terhubung dengan data pegawai.',
-            ]);
+            if (! $supervisor) {
+                throw ValidationException::withMessages([
+                    'supervisor_id' => 'Akun atasan belum terhubung dengan data pegawai.',
+                ]);
+            }
+
+            if (! Employee::query()
+                ->whereKey($data['employee_id'] ?? null)
+                ->where('superior_id', $supervisor->id)
+                ->exists()) {
+                throw ValidationException::withMessages([
+                    'employee_id' => 'Atasan hanya dapat membuat penugasan untuk bawahannya.',
+                ]);
+            }
+
+            $this->ensureScheduleIsValid($data);
+
+            $data['supervisor_id'] = $supervisor->id;
+        } catch (ValidationException $exception) {
+            $this->notifyValidationFailure($exception);
         }
-
-        if (! Employee::query()
-            ->whereKey($data['employee_id'] ?? null)
-            ->where('superior_id', $supervisor->id)
-            ->exists()) {
-            throw ValidationException::withMessages([
-                'employee_id' => 'Atasan hanya dapat membuat penugasan untuk bawahannya.',
-            ]);
-        }
-
-        $data['supervisor_id'] = $supervisor->id;
 
         return $data;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    protected function ensureScheduleIsValid(array $data): void
+    {
+        if (Carbon::parse($data['ends_at'])->lte(Carbon::parse($data['starts_at']))) {
+            throw ValidationException::withMessages([
+                'ends_at' => 'Waktu selesai dinas harus setelah waktu mulai dinas.',
+            ]);
+        }
     }
 }
